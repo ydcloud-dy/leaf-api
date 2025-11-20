@@ -1,0 +1,219 @@
+<template>
+  <div class="about">
+    <div class="container">
+      <div class="page-header">
+        <h1 class="page-title">关于我</h1>
+        <p class="page-subtitle">Hello World</p>
+      </div>
+
+      <el-card class="about-card">
+        <div class="about-content">
+          <div class="avatar-section">
+            <el-avatar :size="150" src="">
+              博主
+            </el-avatar>
+            <h2 class="name">博主昵称</h2>
+            <p class="bio">全栈开发工程师 / 技术爱好者</p>
+          </div>
+
+          <div class="info-section">
+            <h3 class="section-title">个人简介</h3>
+            <p class="text">
+              大家好，我是一名热爱技术的开发者。这个博客是我记录学习心得、分享技术经验的地方。
+              希望通过这个平台，能够与大家一起交流学习，共同进步。
+            </p>
+
+            <h3 class="section-title">技术栈</h3>
+            <div class="skills">
+              <el-tag v-for="skill in skills" :key="skill" size="large" effect="plain">
+                {{ skill }}
+              </el-tag>
+            </div>
+
+            <h3 class="section-title">联系方式</h3>
+            <div class="contacts">
+              <div class="contact-item">
+                <el-icon><Message /></el-icon>
+                <span>Email: example@email.com</span>
+              </div>
+              <div class="contact-item">
+                <el-icon><Link /></el-icon>
+                <span>GitHub: github.com/username</span>
+              </div>
+              <div class="contact-item">
+                <el-icon><ChatDotRound /></el-icon>
+                <span>WeChat: your-wechat-id</span>
+              </div>
+            </div>
+
+            <h3 class="section-title">关于本站</h3>
+            <p class="text">
+              本站采用 Vue 3 + Element Plus 构建前端，后端使用 Go + Gin 框架开发。
+              所有文章内容均为原创或注明出处，欢迎转载，但请保留原文链接。
+            </p>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <el-icon :size="32" color="#409eff"><Document /></el-icon>
+                <div class="stat-number">100+</div>
+                <div class="stat-label">文章数</div>
+              </div>
+              <div class="stat-card">
+                <el-icon :size="32" color="#67c23a"><View /></el-icon>
+                <div class="stat-number">10k+</div>
+                <div class="stat-label">访问量</div>
+              </div>
+              <div class="stat-card">
+                <el-icon :size="32" color="#e6a23c"><ChatDotRound /></el-icon>
+                <div class="stat-number">500+</div>
+                <div class="stat-label">评论数</div>
+              </div>
+              <div class="stat-card">
+                <el-icon :size="32" color="#f56c6c"><Star /></el-icon>
+                <div class="stat-number">1k+</div>
+                <div class="stat-label">获赞数</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+    </div>
+  </div>
+</template>
+
+<script setup>
+const skills = [
+  'Vue.js',
+  'React',
+  'JavaScript',
+  'TypeScript',
+  'Node.js',
+  'Go',
+  'Python',
+  'MySQL',
+  'Redis',
+  'Docker',
+  'Git'
+]
+</script>
+
+<style scoped>
+.about {
+  padding: 20px 0;
+}
+
+.about-card {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.about-content {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  color: #fff;
+}
+
+.name {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+
+.bio {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.info-section {
+  padding: 0 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+  margin: 30px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #409eff;
+}
+
+.text {
+  line-height: 1.8;
+  color: #606266;
+  font-size: 15px;
+}
+
+.skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #606266;
+  font-size: 15px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 20px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #909399;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .name {
+    font-size: 24px;
+  }
+}
+</style>

@@ -1,0 +1,22 @@
+
+> blog-frontend@1.0.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 221 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+5:01:23 PM [vite] http proxy error: /blog/articles?page=1&page_size=10&sort=created_at
+Error: connect ECONNREFUSED ::1:8888
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+5:01:27 PM [vite] http proxy error: /blog/articles?page=1&page_size=10
+Error: connect ECONNREFUSED ::1:8888
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+5:01:27 PM [vite] http proxy error: /blog/articles?page=1&page_size=5&sort=views
+Error: connect ECONNREFUSED ::1:8888
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+5:09:10 PM [vite] hmr update /src/views/ArticleDetail.vue, /src/views/ArticleDetail.vue?vue&type=style&index=0&scoped=3a8b4db0&lang.css
+5:13:04 PM [vite] hmr update /src/views/ArticleDetail.vue, /src/views/ArticleDetail.vue?vue&type=style&index=0&scoped=3a8b4db0&lang.css
+5:13:04 PM [vite] ✨ new dependencies optimized: highlight.js/lib/core, highlight.js/lib/languages/javascript, highlight.js/lib/languages/python, highlight.js/lib/languages/go, highlight.js/lib/languages/java, highlight.js/lib/languages/cpp, highlight.js/lib/languages/bash, highlight.js/lib/languages/sql, highlight.js/lib/languages/json, highlight.js/lib/languages/xml, highlight.js/lib/languages/css, highlight.js/lib/languages/typescript
+5:13:04 PM [vite] ✨ optimized dependencies changed. reloading

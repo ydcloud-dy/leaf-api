@@ -1,0 +1,31 @@
+server:
+  port: 8888
+  mode: debug  # debug, release, test
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: 123456
+  dbname: leaf_admin
+  charset: utf8mb4
+
+jwt:
+  secret: Mv+j9dPbgQH3kHrCuxzojYP7QdVBz63K9pJTlBDkbN8CHlfTmi8saYkrXRA5wb8Z
+  expire: 24  # hours
+
+oss:
+  endpoint: oss-cn-hangzhou.aliyuncs.com
+  access_key_id: LTAI5tDt2gy9Bnf48xbmWn8Z
+  access_key_secret: d41htpgBqb6BgSxrigvdfocDYGMBcD
+  bucket_name: dycloud-leaf
+  base_url: https://dycloud-leaf.oss-cn-hangzhou.aliyuncs.com
+
+log:
+  level: debug          # debug, info, warn, error
+  format: text          # json, text
+  output: stdout        # stdout, file
+  file_path: logs/app.log
+  max_size: 100         # MB
+  max_backups: 3
+  max_age: 7            # days
