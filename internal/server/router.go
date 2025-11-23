@@ -35,6 +35,8 @@ func registerRoutes(
 		blogAuth.POST("/register", blogService.Register)
 		blogAuth.POST("/login", blogService.Login)
 		blogAuth.GET("/me", middleware.JWTAuth(), blogService.GetUserInfo)
+		blogAuth.PUT("/profile", middleware.JWTAuth(), blogService.UpdateProfile)
+		blogAuth.PUT("/password", middleware.JWTAuth(), blogService.ChangePassword)
 	}
 
 	// 博客公开路由（不需要认证）

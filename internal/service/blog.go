@@ -311,15 +311,20 @@ func (s *BlogService) GetGuestbookMessages(c *gin.Context) {
 func (s *BlogService) CreateGuestbookMessage(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
-	var req dto.CreateCommentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var guestbookReq dto.CreateGuestbookMessageRequest
+	if err := c.ShouldBindJSON(&guestbookReq); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	// 设置 article_id = 0 表示留言板消息
-	req.ArticleID = 0
-	req.UserID = userID
+	// 转换为评论请求，ArticleID为nil表示留言板消息
+	req := dto.CreateCommentRequest{
+		ArticleID:     nil, // nil表示留言板消息
+		UserID:        userID,
+		ParentID:      guestbookReq.ParentID,
+		ReplyToUserID: guestbookReq.ReplyToUserID,
+		Content:       guestbookReq.Content,
+	}
 
 	resp, err := s.blogUseCase.CreateComment(&req)
 	if err != nil {
@@ -341,4 +346,40 @@ func (s *BlogService) GetUserStats(c *gin.Context) {
 	}
 
 	response.Success(c, resp)
+}
+
+// UpdateProfile 更新用户资料
+func (s *BlogService) UpdateProfile(c *gin.Context) {
+	userID := c.GetUint("user_id")
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.blogUseCase.UpdateProfile(userID, &req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// ChangePassword 修改密码
+func (s *BlogService) ChangePassword(c *gin.Context) {
+	userID := c.GetUint("user_id")
+
+	var req dto.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.blogUseCase.ChangePassword(userID, &req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
 }

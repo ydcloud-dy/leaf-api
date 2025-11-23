@@ -100,6 +100,25 @@
                   label-width="100px"
                   style="max-width: 600px"
                 >
+                  <el-form-item label="头像">
+                    <div class="avatar-uploader">
+                      <el-upload
+                        class="avatar-upload"
+                        :action="uploadUrl"
+                        :headers="uploadHeaders"
+                        :show-file-list="false"
+                        :on-success="handleAvatarSuccess"
+                        :before-upload="beforeAvatarUpload"
+                        accept="image/*"
+                      >
+                        <el-avatar :size="80" :src="settingsForm.avatar" class="avatar-preview">
+                          {{ settingsForm.username?.charAt(0)?.toUpperCase() }}
+                        </el-avatar>
+                        <div class="avatar-upload-text">点击上传头像</div>
+                      </el-upload>
+                    </div>
+                  </el-form-item>
+
                   <el-form-item label="用户名">
                     <el-input v-model="settingsForm.username" disabled />
                   </el-form-item>
@@ -168,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getMyLikes, getMyFavorites } from '@/api/article'
 import { updateUserInfo, changePassword, getUserStats } from '@/api/auth'
@@ -206,8 +225,39 @@ const settingsForm = reactive({
   username: '',
   email: '',
   nickname: '',
-  bio: ''
+  bio: '',
+  avatar: ''
 })
+
+// 文件上传配置
+const uploadUrl = '/files/upload'
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${localStorage.getItem('token')}`
+}))
+
+const handleAvatarSuccess = (response) => {
+  if (response.code === 0 && response.data) {
+    settingsForm.avatar = response.data.url
+    ElMessage.success('头像上传成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
+}
+
+const beforeAvatarUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件！')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB！')
+    return false
+  }
+  return true
+}
 
 const passwordForm = reactive({
   oldPassword: '',
@@ -258,6 +308,7 @@ const initUserSettings = () => {
   settingsForm.email = userStore.user?.email || ''
   settingsForm.nickname = userStore.user?.nickname || ''
   settingsForm.bio = userStore.user?.bio || ''
+  settingsForm.avatar = userStore.user?.avatar || ''
 }
 
 const fetchStats = async () => {
@@ -319,7 +370,8 @@ const handleSaveSettings = async () => {
     await updateUserInfo({
       email: settingsForm.email,
       nickname: settingsForm.nickname,
-      bio: settingsForm.bio
+      bio: settingsForm.bio,
+      avatar: settingsForm.avatar
     })
     userStore.updateUser(settingsForm)
     ElMessage.success('设置保存成功')
@@ -453,5 +505,30 @@ const handleChangePassword = async () => {
   .user-card {
     position: static;
   }
+}
+
+.avatar-uploader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-upload {
+  cursor: pointer;
+}
+
+.avatar-preview {
+  border: 2px dashed #dcdfe6;
+  transition: border-color 0.3s;
+}
+
+.avatar-preview:hover {
+  border-color: #409eff;
+}
+
+.avatar-upload-text {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

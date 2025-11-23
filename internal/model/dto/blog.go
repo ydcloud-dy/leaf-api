@@ -4,7 +4,15 @@ import "time"
 
 // CreateCommentRequest 创建评论请求
 type CreateCommentRequest struct {
-	ArticleID     uint   `json:"article_id" binding:"required"`
+	ArticleID     *uint  `json:"article_id"` // 可为空，NULL表示留言板消息
+	UserID        uint   `json:"user_id"`
+	ParentID      *uint  `json:"parent_id"`
+	ReplyToUserID *uint  `json:"reply_to_user_id"` // 被回复的用户ID
+	Content       string `json:"content" binding:"required,min=1,max=1000"`
+}
+
+// CreateGuestbookMessageRequest 创建留言板消息请求
+type CreateGuestbookMessageRequest struct {
 	UserID        uint   `json:"user_id"`
 	ParentID      *uint  `json:"parent_id"`
 	ReplyToUserID *uint  `json:"reply_to_user_id"` // 被回复的用户ID
@@ -14,7 +22,7 @@ type CreateCommentRequest struct {
 // CommentResponse 评论响应
 type CommentResponse struct {
 	ID           uint               `json:"id"`
-	ArticleID    uint               `json:"article_id"`
+	ArticleID    *uint              `json:"article_id"` // 可为空
 	UserID       uint               `json:"user_id"`
 	ParentID     *uint              `json:"parent_id"`
 	Content      string             `json:"content"`
@@ -82,4 +90,18 @@ type UserStatsResponse struct {
 	LikesCount     int64 `json:"likes_count"`
 	FavoritesCount int64 `json:"favorites_count"`
 	CommentsCount  int64 `json:"comments_count"`
+}
+
+// UpdateProfileRequest 更新用户资料请求
+type UpdateProfileRequest struct {
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+	Bio      string `json:"bio"`
+	Email    string `json:"email"`
+}
+
+// ChangePasswordRequest 修改密码请求
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
 }

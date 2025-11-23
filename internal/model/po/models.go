@@ -86,7 +86,7 @@ type Tag struct {
 // Comment 评论模型
 type Comment struct {
 	ID            uint           `gorm:"primarykey" json:"id"`
-	ArticleID     uint           `gorm:"index;not null" json:"article_id"`
+	ArticleID     *uint          `gorm:"index" json:"article_id"` // 可为空，NULL表示留言板消息
 	UserID        uint           `gorm:"index;not null" json:"user_id"`
 	ParentID      *uint          `gorm:"index" json:"parent_id"`
 	ReplyToUserID *uint          `gorm:"index" json:"reply_to_user_id"` // 被回复的用户ID
@@ -99,7 +99,7 @@ type Comment struct {
 
 	User        User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	ReplyToUser *User     `gorm:"foreignKey:ReplyToUserID" json:"reply_to_user,omitempty"`
-	Article     Article   `gorm:"foreignKey:ArticleID" json:"article,omitempty"`
+	Article     *Article  `gorm:"foreignKey:ArticleID;constraint:OnDelete:SET NULL;" json:"article,omitempty"`
 	Replies     []Comment `gorm:"foreignKey:ParentID" json:"replies,omitempty"`
 }
 

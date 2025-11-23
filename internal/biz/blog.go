@@ -54,6 +54,10 @@ type BlogUseCase interface {
 	DeleteComment(commentID, userID uint) error
 	// GetUserStats 获取用户统计信息
 	GetUserStats(userID uint) (*dto.UserStatsResponse, error)
+	// UpdateProfile 更新用户资料
+	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error
+	// ChangePassword 修改密码
+	ChangePassword(userID uint, req *dto.ChangePasswordRequest) error
 }
 
 // blogUseCase 博客用户业务用例实现
@@ -412,8 +416,10 @@ func (uc *blogUseCase) CreateComment(req *dto.CreateCommentRequest) (*dto.Commen
 		return nil, err
 	}
 
-	// 更新文章评论数
-	_ = uc.data.ArticleRepo.IncrementCommentCount(req.ArticleID)
+	// 更新文章评论数（仅当是文章评论时）
+	if req.ArticleID != nil {
+		_ = uc.data.ArticleRepo.IncrementCommentCount(*req.ArticleID)
+	}
 
 	// 查询创建的评论（带用户信息）
 	createdComment, err := uc.data.CommentRepo.FindByID(comment.ID)
@@ -612,8 +618,10 @@ func (uc *blogUseCase) DeleteComment(commentID, userID uint) error {
 		return err
 	}
 
-	// 更新文章评论数
-	_ = uc.data.ArticleRepo.DecrementCommentCount(comment.ArticleID)
+	// 更新文章评论数（仅当是文章评论时）
+	if comment.ArticleID != nil {
+		_ = uc.data.ArticleRepo.DecrementCommentCount(*comment.ArticleID)
+	}
 
 	return nil
 }
@@ -647,4 +655,57 @@ func (uc *blogUseCase) GetUserStats(userID uint) (*dto.UserStatsResponse, error)
 		FavoritesCount: favoritesCount,
 		CommentsCount:  commentsCount,
 	}, nil
+}
+
+// UpdateProfile 更新用户资料
+func (uc *blogUseCase) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error {
+	// 查询用户
+	user, err := uc.data.UserRepo.FindByID(userID)
+	if err != nil {
+		return errors.New("用户不存在")
+	}
+
+	// 更新字段
+	if req.Nickname != "" {
+		user.Nickname = req.Nickname
+	}
+	if req.Avatar != "" {
+		user.Avatar = req.Avatar
+	}
+	if req.Bio != "" {
+		user.Bio = req.Bio
+	}
+	if req.Email != "" && req.Email != user.Email {
+		// 检查邮箱是否已被使用
+		existingUser, err := uc.data.UserRepo.FindByEmail(req.Email)
+		if err == nil && existingUser.ID != userID {
+			return errors.New("邮箱已被其他用户使用")
+		}
+		user.Email = req.Email
+	}
+
+	return uc.data.UserRepo.Update(user)
+}
+
+// ChangePassword 修改密码
+func (uc *blogUseCase) ChangePassword(userID uint, req *dto.ChangePasswordRequest) error {
+	// 查询用户
+	user, err := uc.data.UserRepo.FindByID(userID)
+	if err != nil {
+		return errors.New("用户不存在")
+	}
+
+	// 验证旧密码
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
+		return errors.New("旧密码错误")
+	}
+
+	// 加密新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("密码加密失败")
+	}
+
+	user.Password = string(hashedPassword)
+	return uc.data.UserRepo.Update(user)
 }
