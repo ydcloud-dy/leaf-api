@@ -66,6 +66,12 @@ const routes = [
         meta: { title: '分类管理' }
       },
       {
+        path: 'chapters',
+        name: 'Chapters',
+        component: () => import('@/views/chapter/Index.vue'),
+        meta: { title: '章节管理' }
+      },
+      {
         path: 'files',
         name: 'Files',
         component: () => import('@/views/file/Index.vue'),

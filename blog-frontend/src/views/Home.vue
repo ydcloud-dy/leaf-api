@@ -109,6 +109,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getArticles } from '@/api/article'
+import { getStats, getHotArticles } from '@/api/stats'
+import { getTags } from '@/api/tag'
 import ArticleCard from '@/components/ArticleCard.vue'
 
 const router = useRouter()
@@ -148,29 +150,41 @@ const fetchArticles = async () => {
 
 const fetchHotArticles = async () => {
   try {
-    const { data } = await getArticles({
-      page: 1,
-      page_size: 5,
-      sort: 'views',
-      status: 1 // 只获取已发布的文章
-    })
-    hotArticles.value = data.list || []
+    const { data } = await getHotArticles()
+    hotArticles.value = data || []
   } catch (error) {
     console.error('Failed to fetch hot articles:', error)
   }
 }
 
-const fetchTags = () => {
-  // 模拟标签数据
-  tags.value = ['Vue', 'React', 'JavaScript', 'TypeScript', 'Node.js', 'Go', 'Python', 'Docker']
+const fetchTags = async () => {
+  try {
+    const { data } = await getTags()
+    // 提取标签名称 - TagService 返回数组而非 {list: [...]}
+    const tagList = Array.isArray(data) ? data : (data.list || [])
+    tags.value = tagList.map(tag => tag.name)
+  } catch (error) {
+    console.error('Failed to fetch tags:', error)
+    tags.value = []
+  }
 }
 
-const fetchStats = () => {
-  // 模拟统计数据
-  stats.value = {
-    articles: 100,
-    views: 10000,
-    comments: 500
+const fetchStats = async () => {
+  try {
+    const { data } = await getStats()
+    stats.value = {
+      articles: data.article_count || 0,
+      views: data.total_views || 0,
+      comments: data.comment_count || 0
+    }
+  } catch (error) {
+    console.error('Failed to fetch stats:', error)
+    // 如果API失败，使用默认值
+    stats.value = {
+      articles: 0,
+      views: 0,
+      comments: 0
+    }
   }
 }
 
@@ -189,7 +203,12 @@ const handleTagClick = (tag) => {
 
 <style scoped>
 .banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: #fff;
   padding: 80px 0;
   margin-bottom: 40px;
@@ -200,12 +219,14 @@ const handleTagClick = (tag) => {
   font-weight: 700;
   margin-bottom: 16px;
   text-align: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .banner-subtitle {
   font-size: 20px;
   text-align: center;
-  opacity: 0.9;
+  opacity: 0.95;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .content-wrapper {

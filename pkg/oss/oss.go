@@ -131,9 +131,9 @@ func uploadToLocal(src multipart.File, filename string) (string, error) {
 		return "", fmt.Errorf("failed to save file: %w", err)
 	}
 
-	// 返回完整 URL（包含服务器地址和端口）
-	port := config.AppConfig.Server.Port
-	url := fmt.Sprintf("http://localhost:%d/uploads/%s", port, filename)
+	// 返回相对路径URL，让前端根据当前域名访问
+	// 这样无论是localhost还是IP或其他域名都能正常访问
+	url := fmt.Sprintf("/uploads/%s", filename)
 	return url, nil
 }
 

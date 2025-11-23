@@ -47,13 +47,14 @@ func NewHTTPServer(b *biz.Biz, d *data.Data) *HTTPServer {
 	categoryService := service.NewCategoryService(b.CategoryUseCase)
 	tagService := service.NewTagService(b.TagUseCase)
 	commentService := service.NewCommentService(b.CommentUseCase)
+	chapterService := service.NewChapterService(d)
 	statsService := service.NewStatsService(d)
 	settingsService := service.NewSettingsService(d)
 	fileService := service.NewFileService(d)
 	blogService := service.NewBlogService(b.BlogUseCase)
 
 	// 注册路由
-	registerRoutes(r, authService, articleService, userService, categoryService, tagService, commentService, statsService, settingsService, fileService, blogService)
+	registerRoutes(r, authService, articleService, userService, categoryService, tagService, commentService, chapterService, statsService, settingsService, fileService, blogService)
 
 	// 获取端口
 	port := viper.GetInt("server.port")

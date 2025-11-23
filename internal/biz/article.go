@@ -63,6 +63,7 @@ func (uc *articleUseCase) Create(req *dto.CreateArticleRequest, authorID uint) (
 		Cover:           req.Cover,
 		AuthorID:        authorID,
 		CategoryID:      req.CategoryID,
+		ChapterID:       req.ChapterID,
 		Status:          req.Status,
 	}
 
@@ -115,6 +116,8 @@ func (uc *articleUseCase) Update(id uint, req *dto.UpdateArticleRequest) (*dto.A
 		}
 		article.CategoryID = req.CategoryID
 	}
+	// 设置章节ID（可为空）
+	article.ChapterID = req.ChapterID
 	if req.Status >= 0 {
 		article.Status = req.Status
 	}
@@ -224,6 +227,7 @@ func (uc *articleUseCase) convertToArticleResponse(article *po.Article) *dto.Art
 		Cover:           article.Cover,
 		AuthorID:        article.AuthorID,
 		CategoryID:      article.CategoryID,
+		ChapterID:       article.ChapterID,
 		Status:          article.Status,
 		ViewCount:       article.ViewCount,
 		LikeCount:       article.LikeCount,
@@ -231,6 +235,15 @@ func (uc *articleUseCase) convertToArticleResponse(article *po.Article) *dto.Art
 		CommentCount:    article.CommentCount,
 		CreatedAt:       article.CreatedAt,
 		UpdatedAt:       article.UpdatedAt,
+	}
+
+	// 作者信息
+	if article.Author.ID > 0 {
+		resp.Author = &dto.AuthorInfo{
+			ID:       article.Author.ID,
+			Username: article.Author.Username,
+			Avatar:   article.Author.Avatar,
+		}
 	}
 
 	// 分类信息
@@ -271,6 +284,15 @@ func (uc *articleUseCase) convertToArticleListItem(article *po.Article) dto.Arti
 		FavoriteCount: article.FavoriteCount,
 		CommentCount:  article.CommentCount,
 		CreatedAt:     article.CreatedAt,
+	}
+
+	// 作者信息
+	if article.Author.ID > 0 {
+		item.Author = &dto.AuthorInfo{
+			ID:       article.Author.ID,
+			Username: article.Author.Username,
+			Avatar:   article.Author.Avatar,
+		}
 	}
 
 	// 分类信息

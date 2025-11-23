@@ -46,6 +46,7 @@ type Article struct {
 	Cover           string         `gorm:"size:500" json:"cover"`
 	AuthorID        uint           `gorm:"index" json:"author_id"`
 	CategoryID      uint           `gorm:"index" json:"category_id"`
+	ChapterID       *uint          `gorm:"index" json:"chapter_id"` // 所属章节ID,可为空
 	Status          int            `gorm:"default:0" json:"status"` // 0: draft, 1: published, 2: offline
 	ViewCount       int            `gorm:"default:0" json:"view_count"`
 	LikeCount       int            `gorm:"default:0" json:"like_count"`
@@ -55,8 +56,10 @@ type Article struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Category Category `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
-	Tags     []Tag    `gorm:"many2many:article_tags" json:"tags,omitempty"`
+	Author   Admin     `gorm:"foreignKey:AuthorID;references:ID;constraint:OnDelete:SET NULL" json:"author,omitempty"`
+	Category Category  `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
+	Chapter  *Chapter  `gorm:"foreignKey:ChapterID;references:ID" json:"chapter,omitempty"`
+	Tags     []Tag     `gorm:"many2many:article_tags" json:"tags,omitempty"`
 }
 
 // Category 分类模型
@@ -170,6 +173,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&Article{},
 		&Category{},
 		&Tag{},
+		&Chapter{},
 		&Comment{},
 		&Like{},
 		&Favorite{},

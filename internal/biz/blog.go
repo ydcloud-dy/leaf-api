@@ -187,6 +187,11 @@ func (uc *blogUseCase) GetArticleDetail(articleID, userID uint) (*dto.ArticleDet
 		return nil, errors.New("文章不存在或未发布")
 	}
 
+	// 增加浏览量（异步更新，不影响返回）
+	go func() {
+		_ = uc.data.ArticleRepo.IncrementViewCount(articleID)
+	}()
+
 	// 转换为响应结构
 	articleResp := &dto.ArticleResponse{
 		ID:              article.ID,
@@ -204,6 +209,15 @@ func (uc *blogUseCase) GetArticleDetail(articleID, userID uint) (*dto.ArticleDet
 		CommentCount:    article.CommentCount,
 		CreatedAt:       article.CreatedAt,
 		UpdatedAt:       article.UpdatedAt,
+	}
+
+	// 作者信息
+	if article.Author.ID > 0 {
+		articleResp.Author = &dto.AuthorInfo{
+			ID:       article.Author.ID,
+			Username: article.Author.Username,
+			Avatar:   article.Author.Avatar,
+		}
 	}
 
 	// 分类信息
@@ -259,12 +273,21 @@ func (uc *blogUseCase) LikeArticle(userID, articleID uint) error {
 		ArticleID: articleID,
 		CreatedAt: time.Now(),
 	}
-	return uc.data.LikeRepo.Create(like)
+	if err := uc.data.LikeRepo.Create(like); err != nil {
+		return err
+	}
+
+	// 更新文章点赞数
+	return uc.data.ArticleRepo.IncrementLikeCount(articleID)
 }
 
 // UnlikeArticle 取消点赞
 func (uc *blogUseCase) UnlikeArticle(userID, articleID uint) error {
-	return uc.data.LikeRepo.Delete(articleID, userID)
+	if err := uc.data.LikeRepo.Delete(articleID, userID); err != nil {
+		return err
+	}
+	// 更新文章点赞数
+	return uc.data.ArticleRepo.DecrementLikeCount(articleID)
 }
 
 // IsLiked 检查是否已点赞
@@ -320,12 +343,21 @@ func (uc *blogUseCase) FavoriteArticle(userID, articleID uint) error {
 		ArticleID: articleID,
 		CreatedAt: time.Now(),
 	}
-	return uc.data.FavoriteRepo.Create(favorite)
+	if err := uc.data.FavoriteRepo.Create(favorite); err != nil {
+		return err
+	}
+
+	// 更新文章收藏数
+	return uc.data.ArticleRepo.IncrementFavoriteCount(articleID)
 }
 
 // UnfavoriteArticle 取消收藏
 func (uc *blogUseCase) UnfavoriteArticle(userID, articleID uint) error {
-	return uc.data.FavoriteRepo.Delete(articleID, userID)
+	if err := uc.data.FavoriteRepo.Delete(articleID, userID); err != nil {
+		return err
+	}
+	// 更新文章收藏数
+	return uc.data.ArticleRepo.DecrementFavoriteCount(articleID)
 }
 
 // IsFavorited 检查是否已收藏
@@ -379,6 +411,9 @@ func (uc *blogUseCase) CreateComment(req *dto.CreateCommentRequest) (*dto.Commen
 	if err := uc.data.CommentRepo.Create(comment); err != nil {
 		return nil, err
 	}
+
+	// 更新文章评论数
+	_ = uc.data.ArticleRepo.IncrementCommentCount(req.ArticleID)
 
 	// 查询创建的评论（带用户信息）
 	createdComment, err := uc.data.CommentRepo.FindByID(comment.ID)
@@ -573,7 +608,14 @@ func (uc *blogUseCase) DeleteComment(commentID, userID uint) error {
 	}
 
 	// 删除评论（如果是父评论，子评论会被级联删除）
-	return uc.data.CommentRepo.Delete(commentID)
+	if err := uc.data.CommentRepo.Delete(commentID); err != nil {
+		return err
+	}
+
+	// 更新文章评论数
+	_ = uc.data.ArticleRepo.DecrementCommentCount(comment.ArticleID)
+
+	return nil
 }
 
 // GetUserStats 获取用户统计信息

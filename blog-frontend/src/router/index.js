@@ -32,6 +32,12 @@ const routes = [
         meta: { title: '归档' }
       },
       {
+        path: '/notes/:tag?',
+        name: 'Notes',
+        component: () => import('@/views/Notes.vue'),
+        meta: { title: '笔记' }
+      },
+      {
         path: '/guestbook',
         name: 'Guestbook',
         component: () => import('@/views/Guestbook.vue'),

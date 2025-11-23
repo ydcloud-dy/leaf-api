@@ -170,6 +170,9 @@ const handleUpdateProfile = async () => {
     userStore.userInfo.email = profileForm.email
     userStore.userInfo.avatar = profileForm.avatar
 
+    // 保存到 localStorage（重要！）
+    localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+
     ElMessage.success('个人信息更新成功')
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '更新失败')

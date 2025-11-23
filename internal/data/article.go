@@ -77,7 +77,7 @@ func (r *articleRepo) FindByID(id uint) (*po.Article, error) {
 // FindByIDWithRelations 根据 ID 查询文章（包含关联数据）
 func (r *articleRepo) FindByIDWithRelations(id uint) (*po.Article, error) {
 	var article po.Article
-	err := r.db.Preload("Category").Preload("Tags").First(&article, id).Error
+	err := r.db.Preload("Author").Preload("Category").Preload("Tags").First(&article, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID uint, status, keyw
 	var total int64
 
 	offset := (page - 1) * limit
-	query := r.db.Model(&po.Article{}).Preload("Category").Preload("Tags")
+	query := r.db.Model(&po.Article{}).Preload("Author").Preload("Category").Preload("Tags")
 
 	// 分类过滤
 	if categoryID > 0 {
@@ -143,7 +143,7 @@ func (r *articleRepo) IncrementLikeCount(id uint) error {
 
 // DecrementLikeCount 减少点赞数
 func (r *articleRepo) DecrementLikeCount(id uint) error {
-	return r.db.Model(&po.Article{}).Where("id = ?", id).
+	return r.db.Model(&po.Article{}).Where("id = ? AND like_count > 0", id).
 		UpdateColumn("like_count", gorm.Expr("like_count - ?", 1)).Error
 }
 
@@ -155,7 +155,7 @@ func (r *articleRepo) IncrementFavoriteCount(id uint) error {
 
 // DecrementFavoriteCount 减少收藏数
 func (r *articleRepo) DecrementFavoriteCount(id uint) error {
-	return r.db.Model(&po.Article{}).Where("id = ?", id).
+	return r.db.Model(&po.Article{}).Where("id = ? AND favorite_count > 0", id).
 		UpdateColumn("favorite_count", gorm.Expr("favorite_count - ?", 1)).Error
 }
 
@@ -167,7 +167,7 @@ func (r *articleRepo) IncrementCommentCount(id uint) error {
 
 // DecrementCommentCount 减少评论数
 func (r *articleRepo) DecrementCommentCount(id uint) error {
-	return r.db.Model(&po.Article{}).Where("id = ?", id).
+	return r.db.Model(&po.Article{}).Where("id = ? AND comment_count > 0", id).
 		UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error
 }
 

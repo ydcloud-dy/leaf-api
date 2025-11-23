@@ -15,6 +15,7 @@ func registerRoutes(
 	categoryService *service.CategoryService,
 	tagService *service.TagService,
 	commentService *service.CommentService,
+	chapterService *service.ChapterService,
 	statsService *service.StatsService,
 	settingsService *service.SettingsService,
 	fileService *service.FileService,
@@ -47,6 +48,13 @@ func registerRoutes(
 		// 分类和标签
 		blog.GET("/categories", categoryService.List) // 分类列表
 		blog.GET("/tags", tagService.List)            // 标签列表
+
+		// 章节
+		blog.GET("/chapters/:tag", chapterService.GetChaptersByTag) // 获取标签下的章节及文章
+
+		// 统计
+		blog.GET("/stats", statsService.GetStats) // 站点统计
+		blog.GET("/stats/hot-articles", statsService.GetHotArticles) // 热门文章
 	}
 
 	// 博客可选认证路由（支持登录和未登录状态）
@@ -108,6 +116,7 @@ func registerRoutes(
 			articles.GET("", articleService.List)
 			articles.GET("/:id", articleService.GetByID)
 			articles.POST("", articleService.Create)
+			articles.POST("/import", articleService.ImportMarkdown)
 			articles.PUT("/:id", articleService.Update)
 			articles.PATCH("/:id/status", articleService.UpdateStatus)
 			articles.DELETE("/:id", articleService.Delete)
@@ -135,6 +144,16 @@ func registerRoutes(
 			categories.GET("", categoryService.List)
 			categories.POST("", categoryService.Create)
 			categories.DELETE("/:id", categoryService.Delete)
+		}
+
+		// 章节管理
+		chapters := api.Group("/chapters")
+		{
+			chapters.GET("", chapterService.GetChapters)
+			chapters.GET("/:id", chapterService.GetChapter)
+			chapters.POST("", chapterService.CreateChapter)
+			chapters.PUT("/:id", chapterService.UpdateChapter)
+			chapters.DELETE("/:id", chapterService.DeleteChapter)
 		}
 
 		// 统计

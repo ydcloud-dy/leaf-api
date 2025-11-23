@@ -4,7 +4,10 @@
       <template #header>
         <div class="card-header">
           <span>文章列表</span>
-          <el-button type="primary" @click="$router.push('/articles/create')">新增文章</el-button>
+          <div class="header-actions">
+            <el-button type="success" @click="importDialogVisible = true">批量导入</el-button>
+            <el-button type="primary" @click="$router.push('/articles/create')">新增文章</el-button>
+          </div>
         </div>
       </template>
 
@@ -84,6 +87,50 @@
         style="margin-top: 20px"
       />
     </el-card>
+
+    <!-- 批量导入对话框 -->
+    <el-dialog v-model="importDialogVisible" title="批量导入 Markdown 文件" width="600px">
+      <el-alert
+        title="导入说明"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 20px"
+      >
+        <p>1. 支持批量上传 .md 或 .markdown 文件</p>
+        <p>2. 文件名将作为文章标题</p>
+        <p>3. 文件内容将保持 Markdown 格式存储</p>
+        <p>4. 导入的文章默认为草稿状态</p>
+      </el-alert>
+
+      <el-upload
+        ref="uploadRef"
+        :auto-upload="false"
+        :on-change="handleFileChange"
+        :file-list="fileList"
+        accept=".md,.markdown"
+        multiple
+        drag
+      >
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+          将文件拖到此处，或<em>点击上传</em>
+        </div>
+        <template #tip>
+          <div class="el-upload__tip">
+            只能上传 .md 或 .markdown 文件
+          </div>
+        </template>
+      </el-upload>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="importDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleImport" :loading="importing">
+            确定导入
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -91,9 +138,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getArticles, updateArticleStatus, deleteArticle } from '@/api/article'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 const loading = ref(false)
 const articles = ref([])
+const importDialogVisible = ref(false)
+const importing = ref(false)
+const fileList = ref([])
+const uploadRef = ref(null)
 
 const statusMap = {
   0: { label: '草稿', type: 'info' },
@@ -150,6 +203,40 @@ const handleDelete = async (row) => {
   fetchArticles()
 }
 
+const handleFileChange = (file, files) => {
+  fileList.value = files
+}
+
+const handleImport = async () => {
+  if (fileList.value.length === 0) {
+    ElMessage.warning('请选择要导入的 Markdown 文件')
+    return
+  }
+
+  importing.value = true
+  try {
+    const formData = new FormData()
+    fileList.value.forEach((file) => {
+      formData.append('files', file.raw)
+    })
+
+    await request.post('/articles/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    ElMessage.success(`成功导入 ${fileList.value.length} 篇文章`)
+    importDialogVisible.value = false
+    fileList.value = []
+    fetchArticles()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '导入失败')
+  } finally {
+    importing.value = false
+  }
+}
+
 onMounted(() => {
   fetchArticles()
 })
@@ -160,6 +247,11 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .search-form {

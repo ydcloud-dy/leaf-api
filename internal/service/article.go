@@ -1,7 +1,10 @@
 package service
 
 import (
+	"io"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/leaf-api/internal/biz"
@@ -172,3 +175,106 @@ func (s *ArticleService) Archive(c *gin.Context) {
 
 	response.SuccessWithPage(c, resp.Data, resp.Total, resp.Page, resp.Limit)
 }
+
+// ImportMarkdown 批量导入 Markdown 文件
+func (s *ArticleService) ImportMarkdown(c *gin.Context) {
+	// 获取作者 ID
+	adminID, exists := c.Get("admin_id")
+	if !exists {
+		response.Unauthorized(c, "未授权")
+		return
+	}
+
+	// 解析 multipart form
+	form, err := c.MultipartForm()
+	if err != nil {
+		response.BadRequest(c, "解析表单失败: "+err.Error())
+		return
+	}
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		response.BadRequest(c, "没有上传文件")
+		return
+	}
+
+	successCount := 0
+	failedFiles := []string{}
+
+	// 遍历所有文件
+	for _, file := range files {
+		// 检查文件扩展名
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if ext != ".md" && ext != ".markdown" {
+			failedFiles = append(failedFiles, file.Filename+": 不支持的文件格式")
+			continue
+		}
+
+		// 打开文件
+		f, err := file.Open()
+		if err != nil {
+			failedFiles = append(failedFiles, file.Filename+": 打开文件失败")
+			continue
+		}
+
+		// 读取文件内容
+		content, err := io.ReadAll(f)
+		f.Close()
+		if err != nil {
+			failedFiles = append(failedFiles, file.Filename+": 读取文件失败")
+			continue
+		}
+
+		// 提取文件名作为标题（去掉扩展名）
+		title := strings.TrimSuffix(file.Filename, ext)
+
+		// 创建文章
+		req := &dto.CreateArticleRequest{
+			Title:           title,
+			ContentMarkdown: string(content),
+			Summary:         generateSummary(string(content), 200),
+			Status:          0, // 默认为草稿
+			CategoryID:      1, // 默认分类，可以根据需要修改
+			TagIDs:          []uint{},
+		}
+
+		_, err = s.articleUseCase.Create(req, adminID.(uint))
+		if err != nil {
+			failedFiles = append(failedFiles, file.Filename+": 创建文章失败")
+			continue
+		}
+
+		successCount++
+	}
+
+	result := map[string]interface{}{
+		"total":   len(files),
+		"success": successCount,
+		"failed":  len(failedFiles),
+	}
+
+	if len(failedFiles) > 0 {
+		result["failed_files"] = failedFiles
+	}
+
+	response.Success(c, result)
+}
+
+// generateSummary 从内容中生成摘要
+func generateSummary(content string, maxLen int) string {
+	// 移除 Markdown 标记
+	content = strings.ReplaceAll(content, "#", "")
+	content = strings.ReplaceAll(content, "*", "")
+	content = strings.ReplaceAll(content, "_", "")
+	content = strings.ReplaceAll(content, "`", "")
+	content = strings.ReplaceAll(content, "\n", " ")
+	content = strings.TrimSpace(content)
+
+	// 截取指定长度
+	runes := []rune(content)
+	if len(runes) > maxLen {
+		return string(runes[:maxLen]) + "..."
+	}
+	return content
+}
+

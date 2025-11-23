@@ -52,11 +52,6 @@
                 </div>
               </div>
 
-              <!-- 封面图 -->
-              <div v-if="article.cover" class="article-cover">
-                <img :src="article.cover" :alt="article.title" />
-              </div>
-
               <!-- 文章内容 -->
               <div class="article-content" ref="contentRef" v-html="renderedContent"></div>
 
@@ -532,20 +527,6 @@ const formatDate = (date) => {
   flex-wrap: wrap;
 }
 
-.article-cover {
-  width: 100%;
-  max-height: 500px;
-  overflow: hidden;
-  border-radius: 8px;
-  margin-bottom: 30px;
-}
-
-.article-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .article-content {
   font-size: 16px;
   line-height: 1.8;
@@ -875,6 +856,41 @@ const formatDate = (date) => {
   background-color: #ecf5ff;
   color: #409eff;
   font-weight: 500;
+}
+
+/* 大纲层级缩进 */
+.toc-item.toc-level-1 {
+  padding-left: 12px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.toc-item.toc-level-2 {
+  padding-left: 24px;
+  font-size: 14px;
+}
+
+.toc-item.toc-level-3 {
+  padding-left: 36px;
+  font-size: 13px;
+}
+
+.toc-item.toc-level-4 {
+  padding-left: 48px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.toc-item.toc-level-5 {
+  padding-left: 60px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.toc-item.toc-level-6 {
+  padding-left: 72px;
+  font-size: 12px;
+  color: #909399;
 }
 
 

@@ -38,8 +38,8 @@ func (s *StatsService) GetStats(c *gin.Context) {
 	// 统计评论数
 	s.data.GetDB().Model(&po.Comment{}).Where("status = ?", 1).Count(&stats.CommentCount)
 
-	// 统计总浏览量
-	s.data.GetDB().Model(&po.View{}).Count(&stats.TotalViews)
+	// 统计总浏览量（所有文章的浏览量之和）
+	s.data.GetDB().Model(&po.Article{}).Select("COALESCE(SUM(view_count), 0)").Row().Scan(&stats.TotalViews)
 
 	// 统计今日浏览量
 	todayViews, _ := s.data.ViewRepo.CountToday()

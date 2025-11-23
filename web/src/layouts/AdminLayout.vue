@@ -35,6 +35,10 @@
           <el-icon><Folder /></el-icon>
           <span>分类管理</span>
         </el-menu-item>
+        <el-menu-item index="/chapters">
+          <el-icon><Notebook /></el-icon>
+          <span>章节管理</span>
+        </el-menu-item>
         <el-menu-item index="/files">
           <el-icon><Picture /></el-icon>
           <span>文件管理</span>

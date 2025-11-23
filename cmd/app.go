@@ -95,16 +95,18 @@ func Run(configPath string) error {
 // initDefaultAdmin 创建默认管理员
 func initDefaultAdmin() {
 	var count int64
-	config.DB.Model(&po.Admin{}).Count(&count)
+	// 检查users表中是否已有管理员
+	config.DB.Model(&po.User{}).Where("role IN ?", []string{"admin", "super_admin"}).Count(&count)
 	if count > 0 {
 		return
 	}
 
 	password, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-	admin := po.Admin{
+	admin := po.User{
 		Username: "admin",
 		Password: string(password),
 		Email:    "admin@example.com",
+		Nickname: "管理员",
 		Role:     "admin",
 		Status:   1,
 	}

@@ -30,22 +30,23 @@
                 </div>
                 <div class="article-info">
                   <h4 class="article-title">{{ article.title }}</h4>
+                  <p v-if="article.summary" class="article-summary">{{ article.summary }}</p>
                   <div class="article-meta">
                     <el-tag
-                      v-if="article.category"
+                      v-if="article.category && article.category.name"
                       size="small"
                       type="primary"
                       effect="plain"
                     >
-                      {{ article.category }}
+                      {{ article.category.name }}
                     </el-tag>
                     <span class="meta-item">
                       <el-icon><View /></el-icon>
-                      {{ article.views || 0 }}
+                      {{ article.view_count || 0 }}
                     </span>
                     <span class="meta-item">
                       <el-icon><ChatDotRound /></el-icon>
-                      {{ article.comments || 0 }}
+                      {{ article.comment_count || 0 }}
                     </span>
                   </div>
                 </div>
@@ -247,6 +248,18 @@ const formatDay = (date) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.article-summary {
+  font-size: 14px;
+  color: #909399;
+  margin: 4px 0 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
 }
 
 .article-meta {

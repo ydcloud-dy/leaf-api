@@ -10,6 +10,29 @@
         <nav class="nav">
           <router-link to="/" class="nav-link" exact>首页</router-link>
           <router-link to="/articles" class="nav-link">文章</router-link>
+
+          <!-- 笔记下拉菜单 -->
+          <el-dropdown @command="handleNoteCommand" class="notes-dropdown">
+            <span class="nav-link notes-link">
+              笔记
+              <el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item
+                  v-for="tag in tags"
+                  :key="tag.id"
+                  :command="tag.name"
+                >
+                  {{ tag.name }}
+                </el-dropdown-item>
+                <el-dropdown-item v-if="tags.length === 0" disabled>
+                  暂无分类
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
           <router-link to="/archive" class="nav-link">归档</router-link>
           <router-link to="/guestbook" class="nav-link">留言板</router-link>
           <router-link to="/about" class="nav-link">关于</router-link>
@@ -21,6 +44,7 @@
             placeholder="搜索文章..."
             class="search-input"
             clearable
+            @input="handleSearchInput"
             @keyup.enter="handleSearch"
           >
             <template #prefix>
@@ -62,22 +86,61 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getTags } from '@/api/tag'
 import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 const searchKeyword = ref('')
+const tags = ref([])
+let searchTimer = null
+
+onMounted(() => {
+  fetchTags()
+})
+
+const fetchTags = async () => {
+  try {
+    const { data } = await getTags()
+    const tagList = Array.isArray(data) ? data : (data.list || [])
+    tags.value = tagList
+  } catch (error) {
+    console.error('Failed to fetch tags:', error)
+  }
+}
+
+const handleSearchInput = () => {
+  // 清除之前的定时器
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+
+  // 设置新的定时器,500ms后执行搜索
+  searchTimer = setTimeout(() => {
+    handleSearch()
+  }, 500)
+}
 
 const handleSearch = () => {
-  if (searchKeyword.value.trim()) {
-    router.push({
-      name: 'Articles',
-      query: { keyword: searchKeyword.value }
-    })
-  }
+  const keyword = searchKeyword.value.trim()
+
+  // 跳转到文章列表页,如果有关键词则传递,否则显示全部文章
+  router.push({
+    name: 'Articles',
+    query: keyword ? { keyword } : {}
+  })
+}
+
+const handleNoteCommand = (tagName) => {
+  // 跳转到笔记页面,传递标签名称
+  router.push({
+    name: 'Notes',
+    params: { tag: tagName }
+  })
 }
 
 const handleCommand = (command) => {
@@ -154,6 +217,32 @@ const handleCommand = (command) => {
   right: 0;
   height: 2px;
   background-color: #409eff;
+}
+
+.notes-dropdown {
+  display: inline-flex;
+  align-items: center;
+}
+
+.notes-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: #606266;
+  font-size: 16px;
+  transition: color 0.3s;
+  text-decoration: none;
+  position: relative;
+  line-height: normal;
+}
+
+.notes-link:hover {
+  color: #409eff;
+}
+
+.notes-link .el-icon {
+  font-size: 12px;
 }
 
 .header-actions {

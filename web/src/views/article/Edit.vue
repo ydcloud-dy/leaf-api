@@ -32,6 +32,20 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="章节">
+          <el-select v-model="form.chapter_id" placeholder="请选择章节(可选)" clearable>
+            <el-option
+              v-for="item in chapters"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            >
+              <span>{{ item.name }}</span>
+              <span v-if="item.tag" style="float: right; color: #8492a6; font-size: 13px">{{ item.tag.name }}</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="摘要" prop="summary">
           <el-input v-model="form.summary" type="textarea" :rows="3" placeholder="请输入文章摘要" />
         </el-form-item>
@@ -84,6 +98,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getArticle, createArticle, updateArticle } from '@/api/article'
 import { getTags, getCategories } from '@/api/taxonomy'
+import { getChapters } from '@/api/chapter'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -97,6 +112,7 @@ const formRef = ref()
 const submitting = ref(false)
 const tags = ref([])
 const categories = ref([])
+const chapters = ref([])
 
 const isEdit = computed(() => !!route.params.id)
 
@@ -113,6 +129,7 @@ const form = reactive({
   cover: '',
   category_id: null,
   tag_ids: [],
+  chapter_id: null,
   status: 0
 })
 
@@ -123,12 +140,14 @@ const rules = {
 }
 
 const fetchData = async () => {
-  const [tagsRes, categoriesRes] = await Promise.all([
+  const [tagsRes, categoriesRes, chaptersRes] = await Promise.all([
     getTags(),
-    getCategories()
+    getCategories(),
+    getChapters()
   ])
   tags.value = tagsRes.data
   categories.value = categoriesRes.data
+  chapters.value = chaptersRes.data || []
 
   if (isEdit.value) {
     const res = await getArticle(route.params.id)
@@ -140,6 +159,7 @@ const fetchData = async () => {
       cover: article.cover,
       category_id: article.category_id,
       tag_ids: article.tags?.map(t => t.id) || [],
+      chapter_id: article.chapter_id,
       status: article.status
     })
   }
@@ -191,6 +211,7 @@ const handleSubmit = async () => {
       cover: form.cover,
       category_id: form.category_id,
       tag_ids: form.tag_ids || [],
+      chapter_id: form.chapter_id || null,
       status: form.status
     }
 
