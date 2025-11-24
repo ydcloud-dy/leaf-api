@@ -58,6 +58,8 @@ type BlogUseCase interface {
 	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error
 	// ChangePassword 修改密码
 	ChangePassword(userID uint, req *dto.ChangePasswordRequest) error
+	// GetBloggerInfo 获取博主信息（公开）
+	GetBloggerInfo() (*dto.BloggerInfoResponse, error)
 }
 
 // blogUseCase 博客用户业务用例实现
@@ -116,6 +118,10 @@ func (uc *blogUseCase) Register(req *dto.RegisterRequest) (*dto.LoginResponse, e
 			Email:     user.Email,
 			Nickname:  user.Nickname,
 			Avatar:    user.Avatar,
+			Bio:       user.Bio,
+			Skills:    user.Skills,
+			Contacts:  user.Contacts,
+			Role:      user.Role,
 			Status:    user.Status,
 			CreatedAt: user.CreatedAt,
 		},
@@ -154,6 +160,10 @@ func (uc *blogUseCase) Login(req *dto.LoginRequest) (*dto.LoginResponse, error) 
 			Email:     user.Email,
 			Nickname:  user.Nickname,
 			Avatar:    user.Avatar,
+			Bio:       user.Bio,
+			Skills:    user.Skills,
+			Contacts:  user.Contacts,
+			Role:      user.Role,
 			Status:    user.Status,
 			CreatedAt: user.CreatedAt,
 		},
@@ -173,6 +183,10 @@ func (uc *blogUseCase) GetUserInfo(userID uint) (*dto.UserInfo, error) {
 		Email:     user.Email,
 		Nickname:  user.Nickname,
 		Avatar:    user.Avatar,
+		Bio:       user.Bio,
+		Skills:    user.Skills,
+		Contacts:  user.Contacts,
+		Role:      user.Role,
 		Status:    user.Status,
 		CreatedAt: user.CreatedAt,
 	}, nil
@@ -683,6 +697,9 @@ func (uc *blogUseCase) UpdateProfile(userID uint, req *dto.UpdateProfileRequest)
 		}
 		user.Email = req.Email
 	}
+	// 更新技术栈和联系方式（允许空字符串清空）
+	user.Skills = req.Skills
+	user.Contacts = req.Contacts
 
 	return uc.data.UserRepo.Update(user)
 }
@@ -708,4 +725,42 @@ func (uc *blogUseCase) ChangePassword(userID uint, req *dto.ChangePasswordReques
 
 	user.Password = string(hashedPassword)
 	return uc.data.UserRepo.Update(user)
+}
+
+// GetBloggerInfo 获取博主信息（获取第一个管理员用户的信息）
+func (uc *blogUseCase) GetBloggerInfo() (*dto.BloggerInfoResponse, error) {
+	// 获取第一个管理员用户（博主）
+	var user po.User
+	err := uc.data.GetDB().Where("role IN ?", []string{"admin", "super_admin"}).First(&user).Error
+	if err != nil {
+		return nil, errors.New("博主信息不存在")
+	}
+
+	// 统计文章数
+	var articleCount int64
+	uc.data.GetDB().Model(&po.Article{}).Where("status = ?", 1).Count(&articleCount)
+
+	// 统计总浏览量
+	var totalViews int64
+	uc.data.GetDB().Model(&po.Article{}).Select("COALESCE(SUM(view_count), 0)").Row().Scan(&totalViews)
+
+	// 统计评论数
+	var commentCount int64
+	uc.data.GetDB().Model(&po.Comment{}).Where("status = ?", 1).Count(&commentCount)
+
+	// 统计获赞数（所有文章的点赞数总和）
+	var likeCount int64
+	uc.data.GetDB().Model(&po.Article{}).Select("COALESCE(SUM(like_count), 0)").Row().Scan(&likeCount)
+
+	return &dto.BloggerInfoResponse{
+		Nickname:     user.Nickname,
+		Avatar:       user.Avatar,
+		Bio:          user.Bio,
+		Skills:       user.Skills,
+		Contacts:     user.Contacts,
+		ArticleCount: articleCount,
+		TotalViews:   totalViews,
+		CommentCount: commentCount,
+		LikeCount:    likeCount,
+	}, nil
 }

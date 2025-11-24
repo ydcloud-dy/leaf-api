@@ -21,6 +21,13 @@ oss:
   bucket_name: dycloud-leaf
   base_url: https://dycloud-leaf.oss-cn-hangzhou.aliyuncs.com
 
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password:
+  db: 0
+  pool_size: 10
+
 log:
   level: debug          # debug, info, warn, error
   format: text          # json, text

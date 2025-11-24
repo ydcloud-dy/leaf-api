@@ -141,6 +141,26 @@
                     />
                   </el-form-item>
 
+                  <el-form-item label="技术栈">
+                    <el-input
+                      v-model="settingsForm.skills"
+                      type="textarea"
+                      :rows="3"
+                      placeholder="用逗号分隔，如：Vue.js, React, Go, MySQL"
+                    />
+                    <div class="form-tip">多个技术用逗号分隔</div>
+                  </el-form-item>
+
+                  <el-form-item label="联系方式">
+                    <el-input
+                      v-model="settingsForm.contacts"
+                      type="textarea"
+                      :rows="4"
+                      placeholder='JSON格式，如：{"email":"xxx@email.com","github":"username","wechat":"微信号"}'
+                    />
+                    <div class="form-tip">JSON格式，支持 email、github、wechat 等字段</div>
+                  </el-form-item>
+
                   <el-form-item>
                     <el-button type="primary" :loading="saving" @click="handleSaveSettings">
                       保存设置
@@ -226,7 +246,9 @@ const settingsForm = reactive({
   email: '',
   nickname: '',
   bio: '',
-  avatar: ''
+  avatar: '',
+  skills: '',
+  contacts: ''
 })
 
 // 文件上传配置
@@ -309,6 +331,8 @@ const initUserSettings = () => {
   settingsForm.nickname = userStore.user?.nickname || ''
   settingsForm.bio = userStore.user?.bio || ''
   settingsForm.avatar = userStore.user?.avatar || ''
+  settingsForm.skills = userStore.user?.skills || ''
+  settingsForm.contacts = userStore.user?.contacts || ''
 }
 
 const fetchStats = async () => {
@@ -371,7 +395,9 @@ const handleSaveSettings = async () => {
       email: settingsForm.email,
       nickname: settingsForm.nickname,
       bio: settingsForm.bio,
-      avatar: settingsForm.avatar
+      avatar: settingsForm.avatar,
+      skills: settingsForm.skills,
+      contacts: settingsForm.contacts
     })
     userStore.updateUser(settingsForm)
     ElMessage.success('设置保存成功')
@@ -530,5 +556,11 @@ const handleChangePassword = async () => {
 .avatar-upload-text {
   font-size: 12px;
   color: #909399;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

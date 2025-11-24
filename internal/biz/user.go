@@ -99,9 +99,18 @@ func (uc *userUseCase) Update(id uint, req *dto.UpdateUserRequest) (*dto.UserRes
 		}
 		user.Password = string(hashedPassword)
 	}
+	if req.Nickname != "" {
+		user.Nickname = req.Nickname
+	}
 	if req.Avatar != "" {
 		user.Avatar = req.Avatar
 	}
+	if req.Bio != "" {
+		user.Bio = req.Bio
+	}
+	// 更新技术栈和联系方式（允许空字符串清空）
+	user.Skills = req.Skills
+	user.Contacts = req.Contacts
 	if req.Status != nil {
 		user.Status = *req.Status
 	}
@@ -178,6 +187,8 @@ func (uc *userUseCase) convertToUserResponse(user *po.User) *dto.UserResponse {
 		Nickname:  user.Nickname,
 		Avatar:    user.Avatar,
 		Bio:       user.Bio,
+		Skills:    user.Skills,
+		Contacts:  user.Contacts,
 		Status:    user.Status,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,

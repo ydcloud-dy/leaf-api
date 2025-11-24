@@ -35,6 +35,7 @@
 
           <router-link to="/archive" class="nav-link">归档</router-link>
           <router-link to="/guestbook" class="nav-link">留言板</router-link>
+          <router-link to="/stats" class="nav-link">统计</router-link>
           <router-link to="/about" class="nav-link">关于</router-link>
         </nav>
 

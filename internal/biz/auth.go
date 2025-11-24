@@ -15,6 +15,8 @@ type AuthUseCase interface {
 	Login(req *dto.LoginRequest) (*dto.LoginResponse, error)
 	// GetProfile 获取管理员信息
 	GetProfile(adminID uint) (*dto.AdminInfo, error)
+	// UpdateProfile 更新管理员信息
+	UpdateProfile(adminID uint, req *dto.UpdateProfileRequest) error
 }
 
 // authUseCase 认证业务用例实现
@@ -63,7 +65,11 @@ func (uc *authUseCase) Login(req *dto.LoginRequest) (*dto.LoginResponse, error) 
 			ID:        user.ID,
 			Username:  user.Username,
 			Email:     user.Email,
+			Nickname:  user.Nickname,
 			Avatar:    user.Avatar,
+			Bio:       user.Bio,
+			Skills:    user.Skills,
+			Contacts:  user.Contacts,
 			Role:      user.Role,
 			Status:    user.Status,
 			CreatedAt: user.CreatedAt,
@@ -82,9 +88,45 @@ func (uc *authUseCase) GetProfile(adminID uint) (*dto.AdminInfo, error) {
 		ID:        user.ID,
 		Username:  user.Username,
 		Email:     user.Email,
+		Nickname:  user.Nickname,
 		Avatar:    user.Avatar,
+		Bio:       user.Bio,
+		Skills:    user.Skills,
+		Contacts:  user.Contacts,
 		Role:      user.Role,
 		Status:    user.Status,
 		CreatedAt: user.CreatedAt,
 	}, nil
+}
+
+// UpdateProfile 更新管理员信息
+func (uc *authUseCase) UpdateProfile(adminID uint, req *dto.UpdateProfileRequest) error {
+	user, err := uc.data.UserRepo.FindByID(adminID)
+	if err != nil {
+		return errors.New("用户不存在")
+	}
+
+	// 更新字段
+	if req.Nickname != "" {
+		user.Nickname = req.Nickname
+	}
+	if req.Avatar != "" {
+		user.Avatar = req.Avatar
+	}
+	if req.Bio != "" {
+		user.Bio = req.Bio
+	}
+	if req.Email != "" && req.Email != user.Email {
+		// 检查邮箱是否已被使用
+		existingUser, err := uc.data.UserRepo.FindByEmail(req.Email)
+		if err == nil && existingUser.ID != adminID {
+			return errors.New("邮箱已被其他用户使用")
+		}
+		user.Email = req.Email
+	}
+	// 更新技术栈和联系方式（允许空字符串清空）
+	user.Skills = req.Skills
+	user.Contacts = req.Contacts
+
+	return uc.data.UserRepo.Update(user)
 }

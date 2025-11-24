@@ -21,6 +21,8 @@ type UpdateUserRequest struct {
 	Nickname string `json:"nickname" binding:"max=50"`
 	Avatar   string `json:"avatar" binding:"max=500"`
 	Bio      string `json:"bio" binding:"max=500"`
+	Skills   string `json:"skills" binding:"max=500"`
+	Contacts string `json:"contacts" binding:"max=1000"`
 	Status   *int   `json:"status" binding:"omitempty,oneof=0 1"`
 }
 
@@ -39,6 +41,8 @@ type UserResponse struct {
 	Nickname  string    `json:"nickname"`
 	Avatar    string    `json:"avatar"`
 	Bio       string    `json:"bio"`
+	Skills    string    `json:"skills"`
+	Contacts  string    `json:"contacts"`
 	Status    int       `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

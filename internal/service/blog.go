@@ -383,3 +383,14 @@ func (s *BlogService) ChangePassword(c *gin.Context) {
 
 	response.Success(c, nil)
 }
+
+// GetBloggerInfo 获取博主信息
+func (s *BlogService) GetBloggerInfo(c *gin.Context) {
+	resp, err := s.blogUseCase.GetBloggerInfo()
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, resp)
+}

@@ -20,6 +20,8 @@ func registerRoutes(
 	settingsService *service.SettingsService,
 	fileService *service.FileService,
 	blogService *service.BlogService,
+	onlineService *service.OnlineService,
+	visitService *service.VisitService,
 ) {
 	// 管理后台认证路由（不需要 JWT 验证）
 	auth := r.Group("/auth")
@@ -27,6 +29,7 @@ func registerRoutes(
 		auth.POST("/login", authService.Login)
 		auth.POST("/logout", authService.Logout)
 		auth.GET("/profile", middleware.JWTAuth(), authService.GetProfile)
+		auth.PUT("/profile", middleware.JWTAuth(), authService.UpdateProfile)
 	}
 
 	// 博客前台认证路由（不需要 JWT 验证）
@@ -57,12 +60,19 @@ func registerRoutes(
 		// 统计
 		blog.GET("/stats", statsService.GetStats) // 站点统计
 		blog.GET("/stats/hot-articles", statsService.GetHotArticles) // 热门文章
+
+		// 博主信息（关于页面使用）
+		blog.GET("/blogger", blogService.GetBloggerInfo) // 获取博主信息
 	}
 
 	// 博客可选认证路由（支持登录和未登录状态）
 	blogOptionalAuth := r.Group("/blog")
 	blogOptionalAuth.Use(middleware.OptionalJWTAuth())
 	{
+		// 在线追踪（登录用户按 UserID，未登录按 IP）
+		blogOptionalAuth.POST("/heartbeat", onlineService.RecordHeartbeat) // 心跳接口
+		blogOptionalAuth.POST("/visit", visitService.RecordVisitDuration)  // 记录访问时长
+
 		// 文章详情（登录用户可查看点赞收藏状态）
 		blogOptionalAuth.GET("/articles/:id", blogService.GetArticleDetail)
 		// 文章评论（登录用户可查看点赞状态）

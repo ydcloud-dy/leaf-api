@@ -12,7 +12,11 @@ type Admin struct {
 	Username  string         `gorm:"size:50;uniqueIndex;not null" json:"username"`
 	Password  string         `gorm:"size:255;not null" json:"-"`
 	Email     string         `gorm:"size:100" json:"email"`
+	Nickname  string         `gorm:"size:50" json:"nickname"`
 	Avatar    string         `gorm:"size:500" json:"avatar"`
+	Bio       string         `gorm:"size:500" json:"bio"`
+	Skills    string         `gorm:"type:text" json:"skills"`   // 技术栈，逗号分隔
+	Contacts  string         `gorm:"type:text" json:"contacts"` // 联系方式，JSON格式
 	Role      string         `gorm:"size:20;default:admin" json:"role"`
 	Status    int            `gorm:"default:1" json:"status"` // 1: active, 0: inactive
 	CreatedAt time.Time      `json:"created_at"`
@@ -29,6 +33,8 @@ type User struct {
 	Nickname  string         `gorm:"size:50" json:"nickname"`
 	Avatar    string         `gorm:"size:500" json:"avatar"`
 	Bio       string         `gorm:"size:500" json:"bio"`
+	Skills    string         `gorm:"type:text" json:"skills"`     // JSON数组格式的技术栈
+	Contacts  string         `gorm:"type:text" json:"contacts"`   // JSON对象格式的联系方式
 	Role      string         `gorm:"size:20;default:'user'" json:"role"` // user, admin, super_admin
 	Status    int            `gorm:"default:1" json:"status"`            // 1: active, 0: banned
 	CreatedAt time.Time      `json:"created_at"`
@@ -145,6 +151,18 @@ type View struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// PageVisit 页面访问时长记录
+type PageVisit struct {
+	ID        uint      `gorm:"primarykey" json:"id"`
+	UserID    *uint     `gorm:"index" json:"user_id"` // 可为空，游客访问
+	IP        string    `gorm:"size:50;index" json:"ip"`
+	Path      string    `gorm:"size:500" json:"path"`         // 访问路径
+	Duration  int       `gorm:"not null" json:"duration"`      // 停留时长（秒）
+	UserAgent string    `gorm:"size:500" json:"user_agent"`    // 用户代理
+	Referrer  string    `gorm:"size:500" json:"referrer"`      // 来源页面
+	CreatedAt time.Time `gorm:"index" json:"created_at"`
+}
+
 // File 文件模型
 type File struct {
 	ID        uint           `gorm:"primarykey" json:"id"`
@@ -179,6 +197,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&Favorite{},
 		&CommentLike{},
 		&View{},
+		&PageVisit{},
 		&File{},
 		&Setting{},
 	)

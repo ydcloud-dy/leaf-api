@@ -6,43 +6,42 @@
         <p class="page-subtitle">Hello World</p>
       </div>
 
-      <el-card class="about-card">
+      <el-card class="about-card" v-loading="loading">
         <div class="about-content">
           <div class="avatar-section">
-            <el-avatar :size="150" src="">
-              博主
+            <el-avatar :size="150" :src="bloggerInfo.avatar">
+              {{ bloggerInfo.nickname.charAt(0) }}
             </el-avatar>
-            <h2 class="name">博主昵称</h2>
-            <p class="bio">全栈开发工程师 / 技术爱好者</p>
+            <h2 class="name">{{ bloggerInfo.nickname }}</h2>
+            <p class="bio">{{ bloggerInfo.bio }}</p>
           </div>
 
           <div class="info-section">
             <h3 class="section-title">个人简介</h3>
             <p class="text">
-              大家好，我是一名热爱技术的开发者。这个博客是我记录学习心得、分享技术经验的地方。
-              希望通过这个平台，能够与大家一起交流学习，共同进步。
+              {{ bloggerInfo.bio || '暂无简介' }}
             </p>
 
-            <h3 class="section-title">技术栈</h3>
-            <div class="skills">
+            <h3 class="section-title" v-if="skills.length > 0">技术栈</h3>
+            <div class="skills" v-if="skills.length > 0">
               <el-tag v-for="skill in skills" :key="skill" size="large" effect="plain">
                 {{ skill }}
               </el-tag>
             </div>
 
-            <h3 class="section-title">联系方式</h3>
-            <div class="contacts">
-              <div class="contact-item">
+            <h3 class="section-title" v-if="Object.keys(contacts).length > 0">联系方式</h3>
+            <div class="contacts" v-if="Object.keys(contacts).length > 0">
+              <div class="contact-item" v-if="contacts.email">
                 <el-icon><Message /></el-icon>
-                <span>Email: example@email.com</span>
+                <span>Email: {{ contacts.email }}</span>
               </div>
-              <div class="contact-item">
+              <div class="contact-item" v-if="contacts.github">
                 <el-icon><Link /></el-icon>
-                <span>GitHub: github.com/username</span>
+                <span>GitHub: {{ contacts.github }}</span>
               </div>
-              <div class="contact-item">
+              <div class="contact-item" v-if="contacts.wechat">
                 <el-icon><ChatDotRound /></el-icon>
-                <span>WeChat: your-wechat-id</span>
+                <span>WeChat: {{ contacts.wechat }}</span>
               </div>
             </div>
 
@@ -55,22 +54,22 @@
             <div class="stats-grid">
               <div class="stat-card">
                 <el-icon :size="32" color="#409eff"><Document /></el-icon>
-                <div class="stat-number">100+</div>
+                <div class="stat-number">{{ formatNumber(bloggerInfo.article_count) }}</div>
                 <div class="stat-label">文章数</div>
               </div>
               <div class="stat-card">
                 <el-icon :size="32" color="#67c23a"><View /></el-icon>
-                <div class="stat-number">10k+</div>
+                <div class="stat-number">{{ formatNumber(bloggerInfo.total_views) }}</div>
                 <div class="stat-label">访问量</div>
               </div>
               <div class="stat-card">
                 <el-icon :size="32" color="#e6a23c"><ChatDotRound /></el-icon>
-                <div class="stat-number">500+</div>
+                <div class="stat-number">{{ formatNumber(bloggerInfo.comment_count) }}</div>
                 <div class="stat-label">评论数</div>
               </div>
               <div class="stat-card">
                 <el-icon :size="32" color="#f56c6c"><Star /></el-icon>
-                <div class="stat-number">1k+</div>
+                <div class="stat-number">{{ formatNumber(bloggerInfo.like_count) }}</div>
                 <div class="stat-label">获赞数</div>
               </div>
             </div>
@@ -82,19 +81,71 @@
 </template>
 
 <script setup>
-const skills = [
-  'Vue.js',
-  'React',
-  'JavaScript',
-  'TypeScript',
-  'Node.js',
-  'Go',
-  'Python',
-  'MySQL',
-  'Redis',
-  'Docker',
-  'Git'
-]
+import { ref, computed, onMounted } from 'vue'
+import { getBloggerInfo } from '@/api/stats'
+
+const loading = ref(false)
+const bloggerInfo = ref({
+  nickname: '博主',
+  avatar: '',
+  bio: '全栈开发工程师 / 技术爱好者',
+  skills: '',
+  contacts: '',
+  article_count: 0,
+  total_views: 0,
+  comment_count: 0,
+  like_count: 0
+})
+
+// 解析技术栈（逗号分隔的字符串）
+const skills = computed(() => {
+  if (!bloggerInfo.value.skills) return []
+  return bloggerInfo.value.skills
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s)
+})
+
+// 解析联系方式（JSON格式）
+const contacts = computed(() => {
+  if (!bloggerInfo.value.contacts) return {}
+  try {
+    return JSON.parse(bloggerInfo.value.contacts)
+  } catch (e) {
+    return {}
+  }
+})
+
+// 格式化数字（添加k/w单位）
+const formatNumber = (num) => {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w'
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
+
+// 获取博主信息
+const fetchBloggerInfo = async () => {
+  loading.value = true
+  try {
+    const { data } = await getBloggerInfo()
+    bloggerInfo.value = {
+      ...bloggerInfo.value,
+      ...data
+    }
+  } catch (error) {
+    console.error('Failed to fetch blogger info:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchBloggerInfo()
+})
 </script>
 
 <style scoped>

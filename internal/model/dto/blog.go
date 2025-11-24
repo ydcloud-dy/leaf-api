@@ -98,10 +98,26 @@ type UpdateProfileRequest struct {
 	Avatar   string `json:"avatar"`
 	Bio      string `json:"bio"`
 	Email    string `json:"email"`
+	Skills   string `json:"skills"`   // JSON数组格式
+	Contacts string `json:"contacts"` // JSON对象格式
 }
 
 // ChangePasswordRequest 修改密码请求
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
+// BloggerInfoResponse 博主信息响应
+type BloggerInfoResponse struct {
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+	Bio      string `json:"bio"`
+	Skills   string `json:"skills"`
+	Contacts string `json:"contacts"`
+	// 统计数据
+	ArticleCount int64 `json:"article_count"`
+	TotalViews   int64 `json:"total_views"`
+	CommentCount int64 `json:"comment_count"`
+	LikeCount    int64 `json:"like_count"`
 }

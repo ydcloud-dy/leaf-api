@@ -29,7 +29,11 @@ type AdminInfo struct {
 	ID        uint      `json:"id"`
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
+	Nickname  string    `json:"nickname"`
 	Avatar    string    `json:"avatar"`
+	Bio       string    `json:"bio"`
+	Skills    string    `json:"skills"`
+	Contacts  string    `json:"contacts"`
 	Role      string    `json:"role"`
 	Status    int       `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
@@ -42,6 +46,10 @@ type UserInfo struct {
 	Email     string    `json:"email"`
 	Nickname  string    `json:"nickname"`
 	Avatar    string    `json:"avatar"`
+	Bio       string    `json:"bio"`
+	Skills    string    `json:"skills"`
+	Contacts  string    `json:"contacts"`
+	Role      string    `json:"role"`
 	Status    int       `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 }

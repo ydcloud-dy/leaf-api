@@ -13,6 +13,7 @@ import (
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
 	"github.com/ydcloud-dy/leaf-api/pkg/logger"
 	"github.com/ydcloud-dy/leaf-api/pkg/oss"
+	"github.com/ydcloud-dy/leaf-api/pkg/redis"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,6 +36,14 @@ func Run(configPath string) error {
 	// 自动迁移数据库
 	if err := po.AutoMigrate(config.DB); err != nil {
 		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	// 初始化 Redis
+	if err := redis.InitRedis(); err != nil {
+		logger.Warn("Failed to initialize Redis: ", err)
+		logger.Warn("Online user tracking and visit duration recording will be disabled")
+	} else {
+		logger.Info("Redis connected successfully")
 	}
 
 	// 初始化 OSS
@@ -86,6 +95,11 @@ func Run(configPath string) error {
 	// 关闭数据库连接
 	if sqlDB, err := config.DB.DB(); err == nil {
 		sqlDB.Close()
+	}
+
+	// 关闭 Redis 连接
+	if err := redis.Close(); err != nil {
+		logger.Error("Failed to close Redis: ", err)
 	}
 
 	logger.Info("Server exited gracefully")

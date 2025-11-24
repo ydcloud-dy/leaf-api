@@ -50,6 +50,12 @@ const routes = [
         meta: { title: '关于' }
       },
       {
+        path: '/stats',
+        name: 'Stats',
+        component: () => import('@/views/Stats.vue'),
+        meta: { title: '网站统计' }
+      },
+      {
         path: '/profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),

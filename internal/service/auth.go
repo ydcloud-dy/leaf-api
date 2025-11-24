@@ -53,3 +53,21 @@ func (s *AuthService) GetProfile(c *gin.Context) {
 
 	response.Success(c, resp)
 }
+
+// UpdateProfile 更新当前用户信息
+func (s *AuthService) UpdateProfile(c *gin.Context) {
+	adminID, _ := c.Get("admin_id")
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.authUseCase.UpdateProfile(adminID.(uint), &req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
