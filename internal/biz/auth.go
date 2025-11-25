@@ -5,6 +5,7 @@ import (
 
 	"github.com/ydcloud-dy/leaf-api/internal/data"
 	"github.com/ydcloud-dy/leaf-api/internal/model/dto"
+	"github.com/ydcloud-dy/leaf-api/internal/model/po"
 	"github.com/ydcloud-dy/leaf-api/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -16,7 +17,7 @@ type AuthUseCase interface {
 	// GetProfile 获取管理员信息
 	GetProfile(adminID uint) (*dto.AdminInfo, error)
 	// UpdateProfile 更新管理员信息
-	UpdateProfile(adminID uint, req *dto.UpdateProfileRequest) error
+	UpdateProfile(adminID uint, req *dto.UpdateProfileRequest) (*po.User, error)
 }
 
 // authUseCase 认证业务用例实现
@@ -100,10 +101,10 @@ func (uc *authUseCase) GetProfile(adminID uint) (*dto.AdminInfo, error) {
 }
 
 // UpdateProfile 更新管理员信息
-func (uc *authUseCase) UpdateProfile(adminID uint, req *dto.UpdateProfileRequest) error {
+func (uc *authUseCase) UpdateProfile(adminID uint, req *dto.UpdateProfileRequest) (*po.User, error) {
 	user, err := uc.data.UserRepo.FindByID(adminID)
 	if err != nil {
-		return errors.New("用户不存在")
+		return nil, errors.New("用户不存在")
 	}
 
 	// 更新字段
@@ -120,7 +121,7 @@ func (uc *authUseCase) UpdateProfile(adminID uint, req *dto.UpdateProfileRequest
 		// 检查邮箱是否已被使用
 		existingUser, err := uc.data.UserRepo.FindByEmail(req.Email)
 		if err == nil && existingUser.ID != adminID {
-			return errors.New("邮箱已被其他用户使用")
+			return nil, errors.New("邮箱已被其他用户使用")
 		}
 		user.Email = req.Email
 	}
@@ -128,5 +129,18 @@ func (uc *authUseCase) UpdateProfile(adminID uint, req *dto.UpdateProfileRequest
 	user.Skills = req.Skills
 	user.Contacts = req.Contacts
 
-	return uc.data.UserRepo.Update(user)
+	// 更新博主标识（仅管理员可以设置）
+	if req.IsBlogger != nil {
+		// 如果要设置为博主，先取消其他用户的博主标识
+		if *req.IsBlogger {
+			uc.data.GetDB().Model(&po.User{}).Where("is_blogger = ?", true).Update("is_blogger", false)
+		}
+		user.IsBlogger = *req.IsBlogger
+	}
+
+	if err := uc.data.UserRepo.Update(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }

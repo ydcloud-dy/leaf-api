@@ -64,10 +64,23 @@ func (s *AuthService) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if err := s.authUseCase.UpdateProfile(adminID.(uint), &req); err != nil {
+	user, err := s.authUseCase.UpdateProfile(adminID.(uint), &req)
+	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	response.Success(c, nil)
+	// 返回更新后的用户数据（不包含密码）
+	response.Success(c, gin.H{
+		"id":         user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"nickname":   user.Nickname,
+		"avatar":     user.Avatar,
+		"bio":        user.Bio,
+		"skills":     user.Skills,
+		"contacts":   user.Contacts,
+		"role":       user.Role,
+		"is_blogger": user.IsBlogger,
+	})
 }

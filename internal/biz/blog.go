@@ -55,7 +55,7 @@ type BlogUseCase interface {
 	// GetUserStats 获取用户统计信息
 	GetUserStats(userID uint) (*dto.UserStatsResponse, error)
 	// UpdateProfile 更新用户资料
-	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error
+	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) (*po.User, error)
 	// ChangePassword 修改密码
 	ChangePassword(userID uint, req *dto.ChangePasswordRequest) error
 	// GetBloggerInfo 获取博主信息（公开）
@@ -672,11 +672,11 @@ func (uc *blogUseCase) GetUserStats(userID uint) (*dto.UserStatsResponse, error)
 }
 
 // UpdateProfile 更新用户资料
-func (uc *blogUseCase) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error {
+func (uc *blogUseCase) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) (*po.User, error) {
 	// 查询用户
 	user, err := uc.data.UserRepo.FindByID(userID)
 	if err != nil {
-		return errors.New("用户不存在")
+		return nil, errors.New("用户不存在")
 	}
 
 	// 更新字段
@@ -693,7 +693,7 @@ func (uc *blogUseCase) UpdateProfile(userID uint, req *dto.UpdateProfileRequest)
 		// 检查邮箱是否已被使用
 		existingUser, err := uc.data.UserRepo.FindByEmail(req.Email)
 		if err == nil && existingUser.ID != userID {
-			return errors.New("邮箱已被其他用户使用")
+			return nil, errors.New("邮箱已被其他用户使用")
 		}
 		user.Email = req.Email
 	}
@@ -701,7 +701,20 @@ func (uc *blogUseCase) UpdateProfile(userID uint, req *dto.UpdateProfileRequest)
 	user.Skills = req.Skills
 	user.Contacts = req.Contacts
 
-	return uc.data.UserRepo.Update(user)
+	// 更新博主标识（仅管理员可以设置）
+	if req.IsBlogger != nil && (user.Role == "admin" || user.Role == "super_admin") {
+		// 如果要设置为博主，先取消其他用户的博主标识
+		if *req.IsBlogger {
+			uc.data.GetDB().Model(&po.User{}).Where("is_blogger = ?", true).Update("is_blogger", false)
+		}
+		user.IsBlogger = *req.IsBlogger
+	}
+
+	if err := uc.data.UserRepo.Update(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // ChangePassword 修改密码
@@ -727,11 +740,11 @@ func (uc *blogUseCase) ChangePassword(userID uint, req *dto.ChangePasswordReques
 	return uc.data.UserRepo.Update(user)
 }
 
-// GetBloggerInfo 获取博主信息（获取第一个管理员用户的信息）
+// GetBloggerInfo 获取博主信息（获取标记为博主的用户信息）
 func (uc *blogUseCase) GetBloggerInfo() (*dto.BloggerInfoResponse, error) {
-	// 获取第一个管理员用户（博主）
+	// 获取标记为博主的用户
 	var user po.User
-	err := uc.data.GetDB().Where("role IN ?", []string{"admin", "super_admin"}).First(&user).Error
+	err := uc.data.GetDB().Where("is_blogger = ?", true).First(&user).Error
 	if err != nil {
 		return nil, errors.New("博主信息不存在")
 	}

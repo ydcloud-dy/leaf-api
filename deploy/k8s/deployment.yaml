@@ -1,0 +1,268 @@
+---
+# ConfigMap - 应用配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: leaf-api-config
+  namespace: leaf-blog
+data:
+  config.yaml: |
+    server:
+      port: 8888
+      mode: release
+
+    database:
+      host: mysql-service
+      port: 3306
+      user: root
+      password: 123456
+      dbname: leaf_admin
+      charset: utf8mb4
+
+    jwt:
+      secret: Mv+j9dPbgQH3kHrCuxzojYP7QdVBz63K9pJTlBDkbN8CHlfTmi8saYkrXRA5wb8Z
+      expire: 24
+
+    oss:
+      endpoint: oss-cn-hangzhou.aliyuncs.com
+      access_key_id: LTAI5tDt2gy9Bnf48xbmWn8Z
+      access_key_secret: d41htpgBqb6BgSxrigvdfocDYGMBcD
+      bucket_name: dycloud-leaf
+      base_url: https://dycloud-leaf.oss-cn-hangzhou.aliyuncs.com
+
+    redis:
+      host: redis-service
+      port: 6379
+      password:
+      db: 0
+      pool_size: 10
+
+    log:
+      level: info
+      format: json
+      output: stdout
+      file_path: logs/app.log
+      max_size: 100
+      max_backups: 3
+      max_age: 7
+
+---
+# MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: leaf-blog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "123456"
+        - name: MYSQL_DATABASE
+          value: "leaf_admin"
+        - name: MYSQL_CHARACTER_SET_SERVER
+          value: "utf8mb4"
+        - name: MYSQL_COLLATION_SERVER
+          value: "utf8mb4_unicode_ci"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -uroot
+            - -p123456
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: leaf-blog
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+  type: ClusterIP
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: leaf-blog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+        command:
+        - redis-server
+        - --appendonly
+        - "yes"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: leaf-blog
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP
+
+---
+# API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leaf-api
+  namespace: leaf-blog
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: leaf-api
+  template:
+    metadata:
+      labels:
+        app: leaf-api
+    spec:
+      containers:
+      - name: leaf-api
+        image: your-registry/leaf-api:latest
+        ports:
+        - containerPort: 8888
+        env:
+        - name: TZ
+          value: "Asia/Shanghai"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        - name: uploads
+          mountPath: /app/uploads
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: 8888
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: config
+        configMap:
+          name: leaf-api-config
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: uploads-pvc
+
+---
+# API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: leaf-api-service
+  namespace: leaf-blog
+spec:
+  selector:
+    app: leaf-api
+  ports:
+  - port: 8888
+    targetPort: 8888
+  type: ClusterIP
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: leaf-api-ingress
+  namespace: leaf-blog
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.yourdomain.com
+    secretName: leaf-api-tls
+  rules:
+  - host: api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: leaf-api-service
+            port:
+              number: 8888

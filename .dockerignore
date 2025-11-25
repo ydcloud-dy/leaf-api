@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+leaf-api
+blog-admin-api
+
+# Test files
+*_test.go
+
+# Logs
+*.log
+logs/
+
+# Uploads
+uploads/
+
+# Dependencies
+vendor/
+
+# Documentation
+*.md
+docs/
+
+# Deployment
+deploy/
+.claude/
+
+# Frontend
+blog-frontend/
+web/
+
+# macOS
+.DS_Store
+
+# Temporary files
+tmp/
+*.tmp

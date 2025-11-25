@@ -254,12 +254,14 @@ const settingsForm = reactive({
 // 文件上传配置
 const uploadUrl = '/files/upload'
 const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${localStorage.getItem('token')}`
+  Authorization: `Bearer ${userStore.token}`
 }))
 
 const handleAvatarSuccess = (response) => {
   if (response.code === 0 && response.data) {
     settingsForm.avatar = response.data.url
+    // 立即更新 userStore，让左侧头像显示出来
+    userStore.updateUser({ avatar: response.data.url })
     ElMessage.success('头像上传成功')
   } else {
     ElMessage.error(response.message || '上传失败')
@@ -391,7 +393,7 @@ const fetchFavoritedArticles = async () => {
 const handleSaveSettings = async () => {
   saving.value = true
   try {
-    await updateUserInfo({
+    const { data } = await updateUserInfo({
       email: settingsForm.email,
       nickname: settingsForm.nickname,
       bio: settingsForm.bio,
@@ -399,7 +401,8 @@ const handleSaveSettings = async () => {
       skills: settingsForm.skills,
       contacts: settingsForm.contacts
     })
-    userStore.updateUser(settingsForm)
+    // 使用后端返回的完整数据更新store
+    userStore.updateUser(data)
     ElMessage.success('设置保存成功')
   } catch (error) {
     console.error('Failed to save settings:', error)

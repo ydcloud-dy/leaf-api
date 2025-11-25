@@ -198,6 +198,13 @@ func (s *ArticleService) ImportMarkdown(c *gin.Context) {
 		return
 	}
 
+	// 获取默认分类ID（使用第一个可用分类）
+	defaultCategoryID, err := s.articleUseCase.GetDefaultCategoryID()
+	if err != nil {
+		response.BadRequest(c, "获取默认分类失败: "+err.Error())
+		return
+	}
+
 	successCount := 0
 	failedFiles := []string{}
 
@@ -234,13 +241,13 @@ func (s *ArticleService) ImportMarkdown(c *gin.Context) {
 			ContentMarkdown: string(content),
 			Summary:         generateSummary(string(content), 200),
 			Status:          0, // 默认为草稿
-			CategoryID:      1, // 默认分类，可以根据需要修改
+			CategoryID:      defaultCategoryID,
 			TagIDs:          []uint{},
 		}
 
 		_, err = s.articleUseCase.Create(req, adminID.(uint))
 		if err != nil {
-			failedFiles = append(failedFiles, file.Filename+": 创建文章失败")
+			failedFiles = append(failedFiles, file.Filename+": 创建文章失败 - "+err.Error())
 			continue
 		}
 

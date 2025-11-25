@@ -226,6 +226,135 @@ const { data } = await getArticles({ page: 1, page_size: 10 })
 - Safari >= 14
 - Edge >= 90
 
+## 部署方式
+
+### 裸部署
+
+使用自动化部署脚本：
+
+```bash
+# 运行部署脚本
+chmod +x deploy/scripts/deploy.sh
+./deploy/scripts/deploy.sh
+```
+
+或手动部署：
+
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 构建生产版本
+npm run build
+
+# 3. 使用 Nginx 部署
+# 将 dist 目录复制到 Nginx 的 html 目录
+sudo cp -r dist/* /usr/share/nginx/html/
+
+# 4. 配置 Nginx（参考 deploy/nginx/nginx.conf）
+sudo systemctl restart nginx
+```
+
+### Docker 部署
+
+#### 构建镜像
+
+```bash
+docker build -t blog-frontend:latest .
+```
+
+#### 运行容器
+
+```bash
+docker run -d \
+  --name blog-frontend \
+  -p 3000:80 \
+  -e API_URL=http://your-api-server:8888 \
+  blog-frontend:latest
+```
+
+### Docker Compose 部署
+
+在项目根目录的 `docker-compose.yml` 中已包含完整配置：
+
+```bash
+# 启动所有服务（在项目根目录执行）
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f blog-frontend
+
+# 停止服务
+docker-compose down
+```
+
+### Kubernetes 部署
+
+#### 1. 创建命名空间和资源
+
+```bash
+# 在项目根目录执行
+kubectl apply -f deploy/k8s/deployment.yaml
+```
+
+#### 2. 检查部署状态
+
+```bash
+# 查看 Pod
+kubectl get pods -n leaf-blog
+
+# 查看服务
+kubectl get svc -n leaf-blog
+
+# 查看日志
+kubectl logs -f <pod-name> -n leaf-blog
+```
+
+#### 3. 访问服务
+
+```bash
+# 端口转发（用于测试）
+kubectl port-forward svc/blog-frontend-service 3000:80 -n leaf-blog
+
+# 或配置 Ingress 后通过域名访问
+```
+
+## 环境变量配置
+
+### 开发环境
+
+在 `vite.config.js` 中配置：
+
+```javascript
+server: {
+  port: 3000,
+  proxy: {
+    '/api': {
+      target: process.env.API_URL || 'http://localhost:8888',
+      changeOrigin: true
+    }
+  }
+}
+```
+
+### 生产环境
+
+在 Nginx 配置中设置 API 代理：
+
+```nginx
+location /api {
+    proxy_pass http://backend-api:8888;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+或通过 Docker 环境变量传递：
+
+```bash
+docker run -e API_URL=http://your-api:8888 blog-frontend:latest
+```
+
 ## 注意事项
 
 1. 确保后端服务已启动在 http://localhost:8888
@@ -233,6 +362,16 @@ const { data } = await getArticles({ page: 1, page_size: 10 })
 3. 如需修改端口，请编辑 `vite.config.js` 中的 `server.port`
 4. Token 存储在 localStorage 中
 5. 图片资源需要配置正确的 CDN 地址或本地路径
+6. 生产部署时需要配置正确的 API 地址
+7. 使用 Nginx 部署时需要配置 gzip 压缩和缓存策略
+
+## 性能优化
+
+- 使用 Vite 进行快速构建和热更新
+- 生产构建自动进行代码分割和压缩
+- 图片资源建议使用 CDN
+- 启用 Nginx gzip 压缩
+- 配置浏览器缓存策略
 
 ## 许可证
 

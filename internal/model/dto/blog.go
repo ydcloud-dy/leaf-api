@@ -94,12 +94,13 @@ type UserStatsResponse struct {
 
 // UpdateProfileRequest 更新用户资料请求
 type UpdateProfileRequest struct {
-	Nickname string `json:"nickname"`
-	Avatar   string `json:"avatar"`
-	Bio      string `json:"bio"`
-	Email    string `json:"email"`
-	Skills   string `json:"skills"`   // JSON数组格式
-	Contacts string `json:"contacts"` // JSON对象格式
+	Nickname  string `json:"nickname"`
+	Avatar    string `json:"avatar"`
+	Bio       string `json:"bio"`
+	Email     string `json:"email"`
+	Skills    string `json:"skills"`    // JSON数组格式
+	Contacts  string `json:"contacts"`  // JSON对象格式
+	IsBlogger *bool  `json:"is_blogger"` // 是否为博主（仅管理员可设置）
 }
 
 // ChangePasswordRequest 修改密码请求

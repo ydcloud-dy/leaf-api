@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { getBloggerInfo } from '@/api/stats'
 
 const loading = ref(false)
@@ -144,6 +144,11 @@ const fetchBloggerInfo = async () => {
 }
 
 onMounted(() => {
+  fetchBloggerInfo()
+})
+
+// 当页面被激活时（从其他页面切换回来）重新获取数据
+onActivated(() => {
   fetchBloggerInfo()
 })
 </script>

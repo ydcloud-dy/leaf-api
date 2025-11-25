@@ -54,6 +54,9 @@ func Run(configPath string) error {
 	// 创建默认管理员
 	initDefaultAdmin()
 
+	// 创建默认分类
+	initDefaultCategories()
+
 	// 初始化应用（依赖注入）
 	app, err := InitApp(config.DB)
 	if err != nil {
@@ -117,12 +120,13 @@ func initDefaultAdmin() {
 
 	password, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
 	admin := po.User{
-		Username: "admin",
-		Password: string(password),
-		Email:    "admin@example.com",
-		Nickname: "管理员",
-		Role:     "admin",
-		Status:   1,
+		Username:  "admin",
+		Password:  string(password),
+		Email:     "admin@example.com",
+		Nickname:  "管理员",
+		Role:      "admin",
+		Status:    1,
+		IsBlogger: true, // 默认管理员设为博主
 	}
 
 	if err := config.DB.Create(&admin).Error; err != nil {
@@ -131,4 +135,42 @@ func initDefaultAdmin() {
 	}
 
 	logger.Info("Default admin created: admin / admin123")
+}
+
+// initDefaultCategories 创建默认分类
+func initDefaultCategories() {
+	var count int64
+	// 检查categories表中是否已有分类
+	config.DB.Model(&po.Category{}).Count(&count)
+	if count > 0 {
+		return
+	}
+
+	// 创建几个默认分类
+	defaultCategories := []po.Category{
+		{
+			Name:        "未分类",
+			Description: "默认分类",
+			Sort:        0,
+		},
+		{
+			Name:        "技术",
+			Description: "技术相关文章",
+			Sort:        1,
+		},
+		{
+			Name:        "生活",
+			Description: "生活随笔",
+			Sort:        2,
+		},
+	}
+
+	for _, category := range defaultCategories {
+		if err := config.DB.Create(&category).Error; err != nil {
+			logger.Error("Failed to create default category: ", err)
+			continue
+		}
+	}
+
+	logger.Info("Default categories created")
 }

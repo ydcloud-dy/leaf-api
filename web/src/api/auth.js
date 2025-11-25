@@ -11,3 +11,7 @@ export function logout() {
 export function getProfile() {
   return request.get('/auth/profile')
 }
+
+export function updateProfile(data) {
+  return request.put('/auth/profile', data)
+}

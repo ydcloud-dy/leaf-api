@@ -220,18 +220,42 @@ const handleImport = async () => {
       formData.append('files', file.raw)
     })
 
-    await request.post('/articles/import', formData, {
+    const res = await request.post('/articles/import', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     })
 
-    ElMessage.success(`成功导入 ${fileList.value.length} 篇文章`)
+    console.log('导入响应:', res)
+
+    // request 拦截器已经返回 response.data，所以直接访问 res.data
+    const result = res.data
+    if (result.success > 0) {
+      ElMessage.success(`成功导入 ${result.success} 篇文章`)
+    }
+
+    // 如果有失败的文件，显示警告信息
+    if (result.failed > 0) {
+      const failedList = result.failed_files?.join('\n') || ''
+      ElMessage.warning({
+        message: `${result.failed} 篇文章导入失败${failedList ? ':\n' + failedList : ''}`,
+        duration: 5000,
+        showClose: true
+      })
+    }
+
     importDialogVisible.value = false
     fileList.value = []
     fetchArticles()
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '导入失败')
+    console.error('导入错误:', error)
+    console.error('错误响应:', error.response)
+    const errorMsg = error.response?.data?.message || error.message || '导入失败'
+    ElMessage.error({
+      message: errorMsg,
+      duration: 5000,
+      showClose: true
+    })
   } finally {
     importing.value = false
   }

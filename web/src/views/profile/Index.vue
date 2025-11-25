@@ -14,6 +14,27 @@
           <el-input v-model="profileForm.email" />
         </el-form-item>
 
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="profileForm.nickname" />
+        </el-form-item>
+
+        <el-form-item label="个人简介" prop="bio">
+          <el-input v-model="profileForm.bio" type="textarea" :rows="3" maxlength="500" show-word-limit />
+        </el-form-item>
+
+        <el-form-item label="技术栈" prop="skills">
+          <el-input v-model="profileForm.skills" placeholder="用逗号分隔，如：Go,Python,Vue" />
+        </el-form-item>
+
+        <el-form-item label="联系方式" prop="contacts">
+          <el-input v-model="profileForm.contacts" type="textarea" :rows="3" placeholder='JSON格式，如：{"email":"xxx@example.com"}' />
+        </el-form-item>
+
+        <el-form-item label="设为博主">
+          <el-switch v-model="profileForm.isBlogger" />
+          <div class="form-tip">开启后，您的信息将显示在博客前台的"关于"页面</div>
+        </el-form-item>
+
         <el-form-item label="头像" prop="avatar">
           <div class="avatar-uploader-wrapper">
             <el-upload
@@ -69,6 +90,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { updateProfile } from '@/api/auth'
 import request from '@/utils/request'
 
 const userStore = useUserStore()
@@ -87,7 +109,12 @@ const uploadHeaders = computed(() => ({
 const profileForm = reactive({
   username: '',
   email: '',
-  avatar: ''
+  avatar: '',
+  nickname: '',
+  bio: '',
+  skills: '',
+  contacts: '',
+  isBlogger: false
 })
 
 const passwordForm = reactive({
@@ -126,6 +153,11 @@ const loadProfile = () => {
   profileForm.username = userStore.userInfo.username
   profileForm.email = userStore.userInfo.email
   profileForm.avatar = userStore.userInfo.avatar || ''
+  profileForm.nickname = userStore.userInfo.nickname || ''
+  profileForm.bio = userStore.userInfo.bio || ''
+  profileForm.skills = userStore.userInfo.skills || ''
+  profileForm.contacts = userStore.userInfo.contacts || ''
+  profileForm.isBlogger = userStore.userInfo.is_blogger || false
 }
 
 // 头像上传前校验
@@ -160,18 +192,19 @@ const handleUpdateProfile = async () => {
 
   profileLoading.value = true
   try {
-    const userId = userStore.userInfo.id
-    await request.put(`/users/${userId}`, {
+    const { data } = await updateProfile({
       email: profileForm.email,
-      avatar: profileForm.avatar
+      avatar: profileForm.avatar,
+      nickname: profileForm.nickname,
+      bio: profileForm.bio,
+      skills: profileForm.skills,
+      contacts: profileForm.contacts,
+      is_blogger: profileForm.isBlogger
     })
 
-    // 更新本地用户信息
-    userStore.userInfo.email = profileForm.email
-    userStore.userInfo.avatar = profileForm.avatar
-
-    // 保存到 localStorage（重要！）
-    localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+    // 使用后端返回的完整用户数据更新store
+    userStore.userInfo = data
+    localStorage.setItem('userInfo', JSON.stringify(data))
 
     ElMessage.success('个人信息更新成功')
   } catch (error) {
@@ -266,5 +299,11 @@ onMounted(() => {
 .upload-tip {
   font-size: 12px;
   color: #909399;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-left: 10px;
 }
 </style>

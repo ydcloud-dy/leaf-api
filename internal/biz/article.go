@@ -29,6 +29,8 @@ type ArticleUseCase interface {
 	Search(keyword string, page, limit int) (*dto.PageResponse, error)
 	// Archive 获取归档文章（按月份分组）
 	Archive(page, limit int) (*dto.PageResponse, error)
+	// GetDefaultCategoryID 获取默认分类ID
+	GetDefaultCategoryID() (uint, error)
 }
 
 // articleUseCase 文章业务用例实现
@@ -68,13 +70,13 @@ func (uc *articleUseCase) Create(req *dto.CreateArticleRequest, authorID uint) (
 	}
 
 	if err := uc.data.ArticleRepo.Create(article); err != nil {
-		return nil, errors.New("创建文章失败")
+		return nil, errors.New("创建文章失败: " + err.Error())
 	}
 
 	// 关联标签
 	if len(req.TagIDs) > 0 {
 		if err := uc.data.ArticleRepo.AssociateTags(article.ID, req.TagIDs); err != nil {
-			return nil, errors.New("关联标签失败")
+			return nil, errors.New("关联标签失败: " + err.Error())
 		}
 	}
 
@@ -360,5 +362,17 @@ func (uc *articleUseCase) Archive(page, limit int) (*dto.PageResponse, error) {
 		Status: "1", // 只返回已发布的文章
 	}
 	return uc.List(req)
+}
+
+// GetDefaultCategoryID 获取默认分类ID
+func (uc *articleUseCase) GetDefaultCategoryID() (uint, error) {
+	categories, err := uc.data.CategoryRepo.List()
+	if err != nil {
+		return 0, errors.New("查询分类列表失败")
+	}
+	if len(categories) == 0 {
+		return 0, errors.New("系统中没有可用的分类")
+	}
+	return categories[0].ID, nil
 }
 

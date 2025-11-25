@@ -36,6 +36,7 @@ type User struct {
 	Skills    string         `gorm:"type:text" json:"skills"`     // JSON数组格式的技术栈
 	Contacts  string         `gorm:"type:text" json:"contacts"`   // JSON对象格式的联系方式
 	Role      string         `gorm:"size:20;default:'user'" json:"role"` // user, admin, super_admin
+	IsBlogger bool           `gorm:"default:false" json:"is_blogger"`    // 是否为博主（用于关于页面展示）
 	Status    int            `gorm:"default:1" json:"status"`            // 1: active, 0: banned
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -62,7 +63,7 @@ type Article struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Author   Admin     `gorm:"foreignKey:AuthorID;references:ID;constraint:OnDelete:SET NULL" json:"author,omitempty"`
+	Author   User      `gorm:"foreignKey:AuthorID;references:ID;constraint:OnDelete:SET NULL" json:"author,omitempty"`
 	Category Category  `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
 	Chapter  *Chapter  `gorm:"foreignKey:ChapterID;references:ID" json:"chapter,omitempty"`
 	Tags     []Tag     `gorm:"many2many:article_tags" json:"tags,omitempty"`
