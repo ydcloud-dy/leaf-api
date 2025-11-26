@@ -9,7 +9,7 @@
       <el-card class="about-card" v-loading="loading">
         <div class="about-content">
           <div class="avatar-section">
-            <el-avatar :size="150" :src="bloggerInfo.avatar">
+            <el-avatar :size="150" :src="bloggerInfo.avatar" class="avatar">
               {{ bloggerInfo.nickname.charAt(0) }}
             </el-avatar>
             <h2 class="name">{{ bloggerInfo.nickname }}</h2>
@@ -174,9 +174,37 @@ onActivated(() => {
   flex-direction: column;
   align-items: center;
   padding: 40px 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    url('../../img/guanyuwo.png') center/cover;
   border-radius: 8px;
   color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(255, 255, 255, 0.03) 10px,
+      rgba(255, 255, 255, 0.03) 20px
+    );
+  pointer-events: none;
+}
+
+.avatar-section .avatar,
+.avatar-section .name,
+.avatar-section .bio {
+  position: relative;
+  z-index: 1;
 }
 
 .name {
@@ -187,7 +215,7 @@ onActivated(() => {
 
 .bio {
   font-size: 16px;
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .info-section {

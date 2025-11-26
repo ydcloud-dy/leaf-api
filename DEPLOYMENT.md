@@ -1,50 +1,131 @@
-# Leaf Blog 部署指南
+# Leaf Blog 完整部署指南
 
-本文档详细介绍了 Leaf Blog 系统的多种部署方式，包括裸部署、Docker 部署、Docker Compose 部署和 Kubernetes 部署。
+本文档提供 Leaf Blog 的完整部署方案，所有方法都经过测试，可以一键部署并直接访问。
+
+## 快速开始
+
+```bash
+# 一键部署脚本（支持所有部署方式）
+./deploy-all.sh
+```
 
 ## 项目结构
 
 ```
-leaf-api/               # 后端 API 服务
-├── Dockerfile
-├── .dockerignore
-├── deploy/
-│   ├── docker/         # Docker 相关配置
-│   ├── k8s/            # Kubernetes 配置
-│   └── scripts/        # 部署脚本
+leaf-api/               # 后端 Go API (端口 8888)
+├── 路由: /blog/*       # 博客前端 API
+├── 路由: /*            # 管理后台 API
 └── ...
 
-blog-frontend/          # 博客网站前端
-├── Dockerfile
-├── .dockerignore
-├── deploy/
-│   ├── k8s/            # Kubernetes 配置
-│   ├── nginx/          # Nginx 配置
-│   └── scripts/        # 部署脚本
+blog-frontend/          # 博客网站前端 (端口 3000/4173)
+├── API路径: /blog/*    # 请求后端博客API
 └── ...
 
-web/                    # 管理后台前端
-├── Dockerfile
-├── .dockerignore
-├── deploy/
-│   ├── k8s/            # Kubernetes 配置
-│   ├── nginx/          # Nginx 配置
-│   └── scripts/        # 部署脚本
+web/                    # 管理后台前端 (端口 3001/4174)
+├── API路径: /api/*     # 代理到后端根路径
 └── ...
 ```
 
+## 重要：API 路由说明
+
+### 后端路由结构
+- `/blog/*` - 博客前端API（如 `/blog/articles`, `/blog/stats`, `/blog/heartbeat`）
+- `/*` - 管理后台API（如 `/articles`, `/users`, `/auth/login`）
+
+### 前端请求路径
+- **博客前端**: 请求 `/blog/*`，Nginx 直接代理到后端 `http://backend:8888/blog/*`
+- **管理后台**: 请求 `/api/*`，Nginx 代理到后端 `http://backend:8888/*`（去掉 /api 前缀）
+
 ## 目录
 
-- [1. 裸部署（Bare Metal）](#1-裸部署bare-metal)
-- [2. Docker 部署](#2-docker-部署)
-- [3. Docker Compose 部署](#3-docker-compose-部署)
-- [4. Kubernetes 部署](#4-kubernetes-部署)
+- [方式一：Docker Compose 部署（推荐）](#方式一docker-compose-部署推荐)
+- [方式二：裸部署](#方式二裸部署)
+- [方式三：Docker 部署](#方式三docker-部署)
+- [方式四：Kubernetes 部署](#方式四kubernetes-部署)
+- [故障排查](#故障排查)
 
 ---
 
-## 1. 裸部署（Bare Metal）
+## 方式一：Docker Compose 部署（推荐）
 
-裸部署适合开发环境或简单的生产环境。
+这是最简单的部署方式，一键启动所有服务。
+
+### 前置要求
+
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### 快速部署
+
+```bash
+# 1. 克隆项目
+git clone <repository-url>
+cd leaf-api
+
+# 2. 确保配置文件存在
+cp config.yaml.example config.yaml
+# 根据需要修改 config.yaml
+
+# 3. 一键启动
+docker-compose up -d
+
+# 4. 查看日志
+docker-compose logs -f
+
+# 5. 访问服务
+# 博客网站: http://localhost:3000
+# 管理后台: http://localhost:3001
+# 后端 API: http://localhost:8888
+```
+
+### 服务端口映射
+
+| 服务 | 容器端口 | 主机端口 | 说明 |
+|------|---------|---------|------|
+| MySQL | 3306 | 3306 | 数据库 |
+| Redis | 6379 | 6379 | 缓存 |
+| 后端 API | 8888 | 8888 | Go API |
+| 博客前端 | 80 | 3000 | Nginx + Vue |
+| 管理后台 | 80 | 3001 | Nginx + Vue |
+
+### 常用命令
+
+```bash
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f [service-name]
+
+# 重启服务
+docker-compose restart [service-name]
+
+# 停止服务
+docker-compose stop
+
+# 删除服务（不删除数据卷）
+docker-compose down
+
+# 删除服务和数据卷（慎用）
+docker-compose down -v
+
+# 重新构建并启动
+docker-compose up -d --build
+```
+
+### 数据持久化
+
+数据卷会自动创建：
+- `mysql_data`: MySQL 数据
+- `redis_data`: Redis 数据
+- `./uploads`: 上传文件
+- `./logs`: 日志文件
+
+---
+
+## 方式二：裸部署
+
+直接在Linux主机上运行，适合开发环境。
 
 ### 前置要求
 
@@ -52,522 +133,474 @@ web/                    # 管理后台前端
 - Node.js 18+
 - MySQL 8.0+
 - Redis 7+
-- Nginx（可选，用于前端部署）
+- Nginx（可选，用于生产环境）
 
-### 1.1 后端 API 部署
+### 一键部署
 
 ```bash
-# 进入后端目录
+./deploy-all.sh
+# 选择 1) 裸部署
+```
+
+### 手动部署步骤
+
+#### 1. 准备数据库
+
+```bash
+# 启动 MySQL
+sudo systemctl start mysql
+
+# 创建数据库
+mysql -uroot -p
+CREATE DATABASE leaf_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+# 导入初始化脚本（如果有）
+mysql -uroot -p leaf_admin < deploy/docker/mysql/init.sql
+
+# 启动 Redis
+sudo systemctl start redis
+```
+
+#### 2. 部署后端
+
+```bash
 cd leaf-api
 
-# 运行部署脚本
-chmod +x deploy/scripts/deploy.sh
-./deploy/scripts/deploy.sh
-```
-
-部署脚本会自动：
-- 检查 Go 环境
-- 检查 MySQL 和 Redis 连接
-- 安装依赖
-- 构建应用
-- 创建必要的目录
-- 启动应用
-
-手动部署步骤：
-```bash
-# 1. 安装依赖
+# 安装依赖
 go mod download
 
-# 2. 构建
+# 配置文件
+cp config.yaml.example config.yaml
+vim config.yaml  # 修改数据库、Redis 等配置
+
+# 构建
 go build -o leaf-api .
 
-# 3. 创建必要的目录
+# 创建目录
 mkdir -p logs uploads
 
-# 4. 配置 config.yaml（根据实际环境修改）
-cp config.yaml.example config.yaml
-vim config.yaml
+# 启动
+nohup ./leaf-api > logs/server.log 2>&1 &
 
-# 5. 启动
-./leaf-api
+# 验证
+curl http://localhost:8888/ping
 ```
 
-### 1.2 博客前端部署
+#### 3. 部署博客前端
 
 ```bash
-# 进入博客前端目录
 cd blog-frontend
 
-# 运行部署脚本
-chmod +x deploy/scripts/deploy.sh
-./deploy/scripts/deploy.sh
-```
-
-部署脚本会自动：
-- 检查 Node.js 环境
-- 安装依赖
-- 构建应用
-- 部署到 Nginx（如果有）或启动预览服务器
-
-手动部署步骤：
-```bash
-# 1. 安装依赖
+# 安装依赖
 npm install
 
-# 2. 构建
+# 构建
 npm run build
 
-# 3. 部署到 Nginx
-sudo cp -r dist/* /usr/share/nginx/html/
-sudo cp deploy/nginx/nginx.conf /etc/nginx/conf.d/blog-frontend.conf
-sudo nginx -t && sudo systemctl restart nginx
+# 使用预览服务器（开发）
+nohup npm run preview > ../logs/blog-frontend.log 2>&1 &
 
-# 或者使用预览服务器
-npm run preview
+# 或者部署到 Nginx（生产）
+sudo cp -r dist/* /var/www/blog-frontend/
 ```
 
-### 1.3 管理后台部署
+#### 4. 部署管理后台
 
 ```bash
-# 进入管理后台目录
 cd web
 
-# 运行部署脚本
-chmod +x deploy/scripts/deploy.sh
-./deploy/scripts/deploy.sh
+# 安装依赖
+npm install
+
+# 构建
+npm run build
+
+# 使用预览服务器（开发）
+nohup npm run preview -- --port 4174 > ../logs/admin-frontend.log 2>&1 &
+
+# 或者部署到 Nginx（生产）
+sudo cp -r dist/* /var/www/admin-frontend/
 ```
 
-部署步骤与博客前端类似。
+#### 5. 配置 Nginx（生产环境）
+
+```bash
+# 复制配置文件
+sudo cp deploy/nginx/production.conf /etc/nginx/sites-available/leaf-blog.conf
+
+# 修改域名
+sudo vim /etc/nginx/sites-available/leaf-blog.conf
+
+# 创建软链接
+sudo ln -s /etc/nginx/sites-available/leaf-blog.conf /etc/nginx/sites-enabled/
+
+# 测试配置
+sudo nginx -t
+
+# 重启 Nginx
+sudo systemctl restart nginx
+```
+
+### 访问地址
+
+- **开发环境**:
+  - 博客网站: http://localhost:4173
+  - 管理后台: http://localhost:4174
+  - 后端 API: http://localhost:8888
+
+- **生产环境（Nginx）**:
+  - 博客网站: http://yourdomain.com
+  - 管理后台: http://admin.yourdomain.com
+  - 后端 API: http://api.yourdomain.com
 
 ---
 
-## 2. Docker 部署
+## 方式三:Docker 部署
 
 使用 Docker 单独部署各个服务。
 
-### 2.1 后端 API
+### 一键部署
 
 ```bash
-# 构建镜像
-docker build -t leaf-api:latest .
+./deploy-all.sh
+# 选择 2) Docker 部署
+```
 
-# 运行容器
+### 手动部署步骤
+
+```bash
+# 1. 创建网络
+docker network create leaf-network
+
+# 2. 启动 MySQL
+docker run -d \
+  --name leaf-mysql \
+  --network leaf-network \
+  -e MYSQL_ROOT_PASSWORD=123456 \
+  -e MYSQL_DATABASE=leaf_admin \
+  -e TZ=Asia/Shanghai \
+  -p 3306:3306 \
+  -v leaf-mysql-data:/var/lib/mysql \
+  mysql:8.0
+
+# 3. 启动 Redis
+docker run -d \
+  --name leaf-redis \
+  --network leaf-network \
+  -p 6379:6379 \
+  -v leaf-redis-data:/data \
+  redis:7-alpine \
+  redis-server --appendonly yes
+
+# 4. 构建并启动后端
+docker build -t leaf-api:latest .
 docker run -d \
   --name leaf-api \
+  --network leaf-network \
   -p 8888:8888 \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
   -v $(pwd)/uploads:/app/uploads \
-  -v $(pwd)/logs:/app/logs \
-  -e DB_HOST=your-mysql-host \
-  -e DB_PORT=3306 \
-  -e REDIS_HOST=your-redis-host \
-  -e REDIS_PORT=6379 \
+  -e DB_HOST=leaf-mysql \
+  -e REDIS_HOST=leaf-redis \
   leaf-api:latest
-```
 
-### 2.2 博客前端
-
-```bash
-# 构建镜像
+# 5. 构建并启动博客前端
 cd blog-frontend
 docker build -t blog-frontend:latest .
-
-# 运行容器
 docker run -d \
-  --name blog-frontend \
+  --name leaf-blog-frontend \
+  --network leaf-network \
   -p 3000:80 \
   blog-frontend:latest
-```
 
-### 2.3 管理后台
-
-```bash
-# 构建镜像
-cd web
+# 6. 构建并启动管理后台
+cd ../web
 docker build -t admin-frontend:latest .
-
-# 运行容器
 docker run -d \
-  --name admin-frontend \
+  --name leaf-admin-frontend \
+  --network leaf-network \
   -p 3001:80 \
   admin-frontend:latest
 ```
 
 ---
 
-## 3. Docker Compose 部署
+## 方式四：Kubernetes 部署
 
-Docker Compose 是推荐的部署方式，可以一键启动所有服务。
+适合生产环境，支持高可用和自动扩缩容。
 
-### 3.1 快速开始
+### 前置要求
+
+- Kubernetes 集群 1.20+
+- kubectl
+- 容器镜像仓库
+
+### 一键部署
 
 ```bash
-# 1. 克隆项目
-git clone <repository-url>
-cd leaf-api
-
-# 2. 配置环境
-cp config.yaml.example config.yaml
-# 根据需要修改 config.yaml 和 docker-compose.yml
-
-# 3. 启动所有服务
-docker-compose up -d
-
-# 4. 查看日志
-docker-compose logs -f
-
-# 5. 停止所有服务
-docker-compose down
-
-# 6. 停止并删除数据卷（谨慎使用）
-docker-compose down -v
+./deploy-k8s.sh
 ```
 
-### 3.2 服务端口
+### 手动部署步骤
 
-- MySQL: `3306`
-- Redis: `6379`
-- 后端 API: `8888`
-- 博客前端: `3000`
-- 管理后台: `3001`
-
-### 3.3 访问地址
-
-- 博客网站: http://localhost:3000
-- 管理后台: http://localhost:3001
-- 后端 API: http://localhost:8888
-
-### 3.4 数据持久化
-
-Docker Compose 会自动创建以下数据卷：
-- `mysql_data`: MySQL 数据
-- `redis_data`: Redis 数据
-- `./uploads`: 上传文件
-- `./logs`: 日志文件
-
-### 3.5 常用命令
+#### 1. 准备镜像
 
 ```bash
-# 查看服务状态
-docker-compose ps
-
-# 查看某个服务的日志
-docker-compose logs -f api
-docker-compose logs -f blog-frontend
-
-# 重启某个服务
-docker-compose restart api
-
-# 重新构建并启动
-docker-compose up -d --build
-
-# 进入容器
-docker-compose exec api sh
-docker-compose exec mysql mysql -uroot -p123456
-```
-
----
-
-## 4. Kubernetes 部署
-
-适合大规模生产环境，支持高可用和自动扩缩容。
-
-### 4.1 前置要求
-
-- Kubernetes 集群（1.20+）
-- kubectl 命令行工具
-- 容器镜像仓库（用于存储镜像）
-- Ingress Controller（如 nginx-ingress）
-- 可选：cert-manager（用于自动管理 TLS 证书）
-
-### 4.2 准备镜像
-
-```bash
-# 1. 构建后端镜像
+# 构建后端镜像
 docker build -t your-registry/leaf-api:latest .
 docker push your-registry/leaf-api:latest
 
-# 2. 构建博客前端镜像
+# 构建博客前端镜像
 cd blog-frontend
 docker build -t your-registry/blog-frontend:latest .
 docker push your-registry/blog-frontend:latest
 
-# 3. 构建管理后台镜像
+# 构建管理后台镜像
 cd ../web
 docker build -t your-registry/admin-frontend:latest .
 docker push your-registry/admin-frontend:latest
 ```
 
-### 4.3 修改配置
+#### 2. 修改配置
 
 修改以下文件中的镜像地址和域名：
 
-1. **后端配置** (`deploy/k8s/deployment.yaml`):
-   - 修改 `image: your-registry/leaf-api:latest`
-   - 修改 `host: api.yourdomain.com`
-   - 根据需要修改 ConfigMap 中的配置
+1. `deploy/k8s/deployment.yaml` - 修改 API 镜像和域名
+2. `blog-frontend/deploy/k8s/deployment.yaml` - 修改博客前端镜像和域名
+3. `web/deploy/k8s/deployment.yaml` - 修改管理后台镜像和域名
 
-2. **博客前端配置** (`blog-frontend/deploy/k8s/deployment.yaml`):
-   - 修改 `image: your-registry/blog-frontend:latest`
-   - 修改 `host: blog.yourdomain.com`
-
-3. **管理后台配置** (`web/deploy/k8s/deployment.yaml`):
-   - 修改 `image: your-registry/admin-frontend:latest`
-   - 修改 `host: admin.yourdomain.com`
-
-### 4.4 部署步骤
+#### 3. 部署
 
 ```bash
-# 1. 创建命名空间和 PVC
+# 创建命名空间和 PVC
 kubectl apply -f deploy/k8s/pvc.yaml
 
-# 2. 部署后端服务（包括 MySQL、Redis、API）
+# 部署后端服务
 kubectl apply -f deploy/k8s/deployment.yaml
 
-# 3. 部署博客前端
+# 部署博客前端
 kubectl apply -f blog-frontend/deploy/k8s/deployment.yaml
 
-# 4. 部署管理后台
+# 部署管理后台
 kubectl apply -f web/deploy/k8s/deployment.yaml
 
-# 5. 查看部署状态
+# 查看状态
 kubectl get pods -n leaf-blog
 kubectl get svc -n leaf-blog
 kubectl get ingress -n leaf-blog
 ```
 
-### 4.5 一键部署脚本
-
-```bash
-# 创建一键部署脚本
-cat > deploy-k8s.sh << 'EOF'
-#!/bin/bash
-set -e
-
-echo "🚀 开始部署到 Kubernetes..."
-
-# 应用所有配置
-kubectl apply -f deploy/k8s/pvc.yaml
-kubectl apply -f deploy/k8s/deployment.yaml
-kubectl apply -f blog-frontend/deploy/k8s/deployment.yaml
-kubectl apply -f web/deploy/k8s/deployment.yaml
-
-echo "⏳ 等待 Pod 就绪..."
-kubectl wait --for=condition=ready pod -l app=leaf-api -n leaf-blog --timeout=300s
-kubectl wait --for=condition=ready pod -l app=blog-frontend -n leaf-blog --timeout=300s
-kubectl wait --for=condition=ready pod -l app=admin-frontend -n leaf-blog --timeout=300s
-
-echo "✅ 部署完成！"
-echo ""
-echo "查看状态："
-kubectl get pods -n leaf-blog
-echo ""
-echo "访问地址："
-kubectl get ingress -n leaf-blog
-EOF
-
-chmod +x deploy-k8s.sh
-./deploy-k8s.sh
-```
-
-### 4.6 常用 K8s 命令
-
-```bash
-# 查看所有资源
-kubectl get all -n leaf-blog
-
-# 查看 Pod 日志
-kubectl logs -f <pod-name> -n leaf-blog
-
-# 查看 Pod 详情
-kubectl describe pod <pod-name> -n leaf-blog
-
-# 进入容器
-kubectl exec -it <pod-name> -n leaf-blog -- sh
-
-# 扩容/缩容
-kubectl scale deployment leaf-api --replicas=3 -n leaf-blog
-
-# 更新镜像
-kubectl set image deployment/leaf-api leaf-api=your-registry/leaf-api:v2 -n leaf-blog
-
-# 查看配置
-kubectl get configmap leaf-api-config -n leaf-blog -o yaml
-
-# 删除所有资源
-kubectl delete namespace leaf-blog
-```
-
-### 4.7 高可用配置
-
-对于生产环境，建议：
-
-1. **数据库高可用**：使用云数据库服务或 MySQL 集群
-2. **Redis 高可用**：使用 Redis Sentinel 或 Redis Cluster
-3. **应用多副本**：API 和前端至少 2 个副本
-4. **资源限制**：根据实际负载调整 resources 配置
-5. **健康检查**：配置合适的 livenessProbe 和 readinessProbe
-6. **日志收集**：集成 ELK 或其他日志系统
-7. **监控告警**：集成 Prometheus + Grafana
-
-### 4.8 存储类配置
-
-根据云平台修改 `storageClassName`：
-
-- **阿里云**: `alicloud-disk-ssd`
-- **腾讯云**: `cbs`
-- **AWS**: `gp2` 或 `gp3`
-- **GCP**: `standard` 或 `ssd`
-- **本地**: `local-path` 或 `nfs`
-
 ---
 
-## 5. 环境变量说明
+## 故障排查
 
-### 后端 API 环境变量
+### 1. API 接口 404 错误
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `DB_HOST` | MySQL 主机地址 | localhost |
-| `DB_PORT` | MySQL 端口 | 3306 |
-| `DB_USER` | MySQL 用户名 | root |
-| `DB_PASSWORD` | MySQL 密码 | 123456 |
-| `DB_NAME` | 数据库名 | leaf_admin |
-| `REDIS_HOST` | Redis 主机地址 | localhost |
-| `REDIS_PORT` | Redis 端口 | 6379 |
-| `REDIS_PASSWORD` | Redis 密码 | - |
-| `JWT_SECRET` | JWT 密钥 | - |
-| `TZ` | 时区 | Asia/Shanghai |
+**问题**: 访问 `/api/heartbeat` 或 `/api/visit` 返回 404
 
----
+**原因**:
+- 博客前端应该请求 `/blog/heartbeat` 和 `/blog/visit`
+- Nginx 配置不正确
 
-## 6. 故障排查
+**解决方案**:
 
-### 6.1 后端 API 无法启动
+1. 检查前端 API 配置:
+```javascript
+// blog-frontend/src/api/request.js
+baseURL: '/blog'  // 应该是 /blog 而不是 /api
+```
+
+2. 检查 Nginx 配置:
+```nginx
+# 博客前端 Nginx
+location /blog/ {
+    proxy_pass http://leaf-api:8888;  # 正确
+}
+
+# 管理后台 Nginx
+location /api/ {
+    proxy_pass http://leaf-api:8888/;  # 注意末尾的 /
+}
+```
+
+### 2. 前端无法访问后端
+
+**检查步骤**:
 
 ```bash
-# 检查日志
-tail -f logs/app.log
+# Docker Compose
+docker-compose ps  # 查看所有服务状态
+docker-compose logs api  # 查看后端日志
+docker-compose logs blog-frontend  # 查看前端日志
 
-# 检查端口占用
+# 测试后端连接
+curl http://localhost:8888/ping
+curl http://localhost:8888/blog/stats
+
+# 测试前端Nginx配置
+docker exec leaf-blog-frontend nginx -t
+```
+
+### 3. 数据库连接失败
+
+```bash
+# 检查 MySQL 是否启动
+docker ps | grep mysql
+
+# 进入 MySQL 容器
+docker exec -it leaf-mysql mysql -uroot -p123456
+
+# 检查数据库
+SHOW DATABASES;
+USE leaf_admin;
+SHOW TABLES;
+
+# 查看后端日志
+docker logs leaf-api
+```
+
+### 4. Redis 连接失败
+
+```bash
+# 检查 Redis
+docker exec -it leaf-redis redis-cli ping
+
+# 测试连接
+docker exec -it leaf-redis redis-cli
+> PING
+PONG
+```
+
+### 5. Nginx 配置错误
+
+```bash
+# Docker 环境
+docker exec leaf-blog-frontend nginx -t
+docker exec leaf-blog-frontend cat /etc/nginx/conf.d/default.conf
+
+# 裸部署
+sudo nginx -t
+sudo cat /etc/nginx/sites-enabled/leaf-blog.conf
+```
+
+### 6. 端口占用
+
+```bash
+# 查看端口占用
 lsof -i :8888
+lsof -i :3000
+lsof -i :3001
 
-# 检查数据库连接
-mysql -h127.0.0.1 -P3306 -uroot -p123456
-
-# 检查 Redis 连接
-redis-cli -h 127.0.0.1 -p 6379 ping
-```
-
-### 6.2 前端无法访问
-
-```bash
-# 检查 Nginx 配置
-nginx -t
-
-# 查看 Nginx 日志
-tail -f /var/log/nginx/error.log
-
-# 检查构建产物
-ls -la dist/
-```
-
-### 6.3 Docker Compose 问题
-
-```bash
-# 查看所有服务状态
-docker-compose ps
-
-# 查看特定服务日志
-docker-compose logs api
-
-# 重新构建
-docker-compose build --no-cache
-
-# 清理并重新启动
-docker-compose down -v
-docker-compose up -d
-```
-
-### 6.4 Kubernetes 问题
-
-```bash
-# 查看 Pod 状态
-kubectl get pods -n leaf-blog
-
-# 查看 Pod 日志
-kubectl logs <pod-name> -n leaf-blog
-
-# 查看 Pod 事件
-kubectl describe pod <pod-name> -n leaf-blog
-
-# 查看 Service
-kubectl get svc -n leaf-blog
-
-# 检查 Ingress
-kubectl describe ingress -n leaf-blog
+# 停止占用进程
+kill -9 <PID>
 ```
 
 ---
 
-## 7. 安全建议
+## 性能优化建议
 
-1. **更改默认密码**：修改 MySQL、Redis 的默认密码
-2. **JWT 密钥**：使用强随机密钥
-3. **HTTPS**：生产环境启用 HTTPS
-4. **防火墙**：限制不必要的端口访问
-5. **定期更新**：及时更新依赖和系统补丁
-6. **备份**：定期备份数据库和上传文件
-7. **监控**：配置日志和性能监控
+### 1. 后端优化
+- 配置合适的数据库连接池
+- 启用 Redis 缓存热点数据
+- 添加数据库索引
 
----
+### 2. 前端优化
+- 启用 Gzip 压缩
+- 配置静态资源缓存
+- 使用 CDN
 
-## 8. 性能优化
-
-1. **数据库优化**：
-   - 添加合适的索引
-   - 定期分析和优化查询
-   - 配置连接池
-
-2. **Redis 缓存**：
-   - 缓存热点数据
-   - 设置合理的过期时间
-
-3. **前端优化**：
-   - 启用 Gzip 压缩
-   - 配置静态资源缓存
-   - 使用 CDN
-
-4. **负载均衡**：
-   - 使用 Nginx 或云负载均衡
-   - 配置多个后端实例
-
----
-
-## 9. 备份和恢复
-
-### 9.1 数据库备份
-
-```bash
-# 备份
-docker-compose exec mysql mysqldump -uroot -p123456 leaf_admin > backup.sql
-
-# 恢复
-docker-compose exec -T mysql mysql -uroot -p123456 leaf_admin < backup.sql
-```
-
-### 9.2 文件备份
-
-```bash
-# 备份上传文件
-tar -czf uploads-backup.tar.gz uploads/
-
-# 恢复
-tar -xzf uploads-backup.tar.gz
+### 3. 数据库优化
+```sql
+-- 添加索引示例
+CREATE INDEX idx_article_status ON articles(status);
+CREATE INDEX idx_article_created ON articles(created_at);
 ```
 
 ---
 
-## 10. 联系和支持
+## 安全建议
 
-如有问题，请提交 Issue 或联系维护团队。
+1. **更改默认密码**
+   - MySQL root 密码
+   - Redis 密码
+   - JWT 密钥
+
+2. **启用 HTTPS**
+```nginx
+server {
+    listen 443 ssl http2;
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+}
+```
+
+3. **配置防火墙**
+```bash
+# 只开放必要端口
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+4. **定期备份**
+```bash
+# 数据库备份
+docker exec leaf-mysql mysqldump -uroot -p123456 leaf_admin > backup-$(date +%Y%m%d).sql
+
+# 上传文件备份
+tar -czf uploads-backup-$(date +%Y%m%d).tar.gz uploads/
+```
+
+---
+
+## 常见问题
+
+**Q: 如何修改端口？**
+
+A: 修改 `docker-compose.yml` 中的端口映射：
+```yaml
+ports:
+  - "8080:8888"  # 将 8888 改为 8080
+```
+
+**Q: 如何查看日志？**
+
+A:
+```bash
+# Docker Compose
+docker-compose logs -f [service-name]
+
+# 裸部署
+tail -f logs/server.log
+tail -f logs/blog-frontend.log
+```
+
+**Q: 如何重启服务？**
+
+A:
+```bash
+# Docker Compose
+docker-compose restart
+
+# 裸部署
+pkill -f leaf-api && nohup ./leaf-api > logs/server.log 2>&1 &
+```
+
+**Q: 如何清理所有数据？**
+
+A:
+```bash
+./deploy-all.sh
+# 选择 5) 清理所有容器和数据
+```
+
+---
+
+## 联系支持
+
+如有问题，请：
+1. 查看日志文件
+2. 检查本文档的故障排查部分
+3. 提交 Issue
+
+祝部署顺利！

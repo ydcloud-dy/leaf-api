@@ -44,8 +44,8 @@ export function useVisitTracking() {
     if (navigator.sendBeacon) {
       try {
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
-        const baseURL = 'http://localhost:8888'
-        navigator.sendBeacon(`${baseURL}/blog/visit`, blob)
+        // 使用相对路径，由 Nginx 代理到后端
+        navigator.sendBeacon('/blog/visit', blob)
       } catch (error) {
         console.warn('sendBeacon failed:', error)
       }

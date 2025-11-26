@@ -205,8 +205,9 @@ const handleTagClick = (tag) => {
 .banner {
   background:
     linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
-    url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80');
+    url('../../img/wukong.png');
   background-size: cover;
+  height: 500px;
   background-position: center;
   background-attachment: fixed;
   color: #fff;
@@ -217,6 +218,7 @@ const handleTagClick = (tag) => {
 .banner-title {
   font-size: 48px;
   font-weight: 700;
+  margin-top: 100px;
   margin-bottom: 16px;
   text-align: center;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);

@@ -164,7 +164,6 @@ onUnmounted(() => {
   min-height: 100vh;
   padding: 20px 0 60px;
   background:
-    linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)),
     url('https://images.unsplash.com/photo-1557683316-973673baf926?w=1920&q=80');
   background-size: cover;
   background-position: center;
