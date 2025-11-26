@@ -1,6 +1,11 @@
 package service
 
 import (
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/leaf-api/internal/data"
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
@@ -173,19 +178,74 @@ func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 		po.Chapter
 		Articles []po.Article `json:"articles"`
 	}
-	
+
 	var result []ChapterWithArticles
 	for _, chapter := range chapters {
 		var articles []po.Article
 		s.data.GetDB().Where("chapter_id = ? AND status = 1", chapter.ID).
-			Order("created_at DESC").
 			Find(&articles)
-		
+
+		// 对文章按标题中的序号进行排序
+		sortArticlesByTitleNumber(articles)
+
 		result = append(result, ChapterWithArticles{
 			Chapter:  chapter,
 			Articles: articles,
 		})
 	}
-	
+
 	response.Success(c, result)
+}
+
+// sortArticlesByTitleNumber 按标题中的序号对文章进行排序
+func sortArticlesByTitleNumber(articles []po.Article) {
+	// 中文数字映射表
+	chineseNumbers := map[rune]int{
+		'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+		'六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+		'壹': 1, '贰': 2, '叁': 3, '肆': 4, '伍': 5,
+		'陆': 6, '柒': 7, '捌': 8, '玖': 9, '拾': 10,
+	}
+
+	// 提取标题中的序号
+	extractNumber := func(title string) int {
+		if title == "" {
+			return 999999 // 没有标题的排在最后
+		}
+
+		// 去除空格
+		title = strings.TrimSpace(title)
+
+		// 尝试匹配阿拉伯数字: "1."、"1、"、"1 "、"1-" 等
+		arabicRegex := regexp.MustCompile(`^(\d+)[.\s、,，-]`)
+		if matches := arabicRegex.FindStringSubmatch(title); len(matches) > 1 {
+			if num, err := strconv.Atoi(matches[1]); err == nil {
+				return num
+			}
+		}
+
+		// 尝试匹配中文数字: "一、"、"一."、"一 " 等
+		if len(title) > 0 {
+			firstChar := []rune(title)[0]
+			if num, ok := chineseNumbers[firstChar]; ok {
+				return num
+			}
+		}
+
+		// 如果都没有匹配到,返回一个很大的数,排在后面
+		return 999999
+	}
+
+	// 使用 sort.Slice 进行排序
+	sort.Slice(articles, func(i, j int) bool {
+		numI := extractNumber(articles[i].Title)
+		numJ := extractNumber(articles[j].Title)
+
+		// 如果序号相同,按创建时间排序
+		if numI == numJ {
+			return articles[i].CreatedAt.Before(articles[j].CreatedAt)
+		}
+
+		return numI < numJ
+	})
 }
