@@ -1,14 +1,19 @@
 # 多阶段构建 Dockerfile
 
 # 第一阶段：构建
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/golang:1.21-alpine3.18-linuxarm64 AS builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/golang:1.21-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
-
+RUN echo "https://mirrors.aliyun.com/alpine/v3.20/main/" > /etc/apk/repositories && \
+    echo "https://mirrors.aliyun.com/alpine/v3.20/community/" >> /etc/apk/repositories
 # 安装必要的构建工具
 RUN apk add --no-cache git make
-
+# 3. 设置国内 Go 模块源
+ENV GO111MODULE=on \
+    GOPROXY=https://goproxy.cn,direct \
+    CGO_ENABLED=0 \
+    GOOS=linux
 # 复制 go mod 文件
 COPY go.mod go.sum ./
 
@@ -22,8 +27,9 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o leaf-api .
 
 # 第二阶段：运行
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/alpine:latest-linuxarm64
-
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/alpine:latest
+RUN echo "https://mirrors.aliyun.com/alpine/v3.20/main/" > /etc/apk/repositories && \
+    echo "https://mirrors.aliyun.com/alpine/v3.20/community/" >> /etc/apk/repositories
 # 安装必要的运行时依赖
 RUN apk --no-cache add ca-certificates tzdata
 

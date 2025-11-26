@@ -1,11 +1,12 @@
 # 构建阶段
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:18-alpine-linuxarm64 as builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:18-alpine as builder
 
 WORKDIR /app
 
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
-
+# 换成国内 npm 源（淘宝镜像）
+RUN npm config set registry https://registry.npmmirror.com
 # 安装依赖
 RUN npm ci --only=production
 RUN npm i
@@ -16,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # 生产阶段
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.25-alpine-linuxarm64
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.25-alpine
 
 # 复制自定义 nginx 配置
 COPY deploy/nginx/nginx.conf /etc/nginx/conf.d/default.conf
