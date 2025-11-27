@@ -24,9 +24,9 @@
         <div v-if="currentTag" class="chapters-content">
           <h2 class="content-title">{{ currentTag }}</h2>
 
-          <!-- 章节列表 -->
+          <!-- 章节列表（支持多级目录） -->
           <div v-for="chapter in chapters" :key="chapter.id" class="chapter-section">
-            <!-- 章节标题 -->
+            <!-- 一级章节标题 -->
             <div
               class="chapter-header"
               :class="{ expanded: expandedChapters.includes(chapter.id) }"
@@ -37,27 +37,62 @@
                 <ArrowDown v-else />
               </el-icon>
               <h3 class="chapter-name">{{ chapter.name }}</h3>
-              <span class="article-count">({{ chapter.articles?.length || 0 }})</span>
+              <span class="article-count">({{ getTotalArticleCount(chapter) }})</span>
             </div>
 
-            <!-- 章节下的文章列表 -->
-            <div v-show="expandedChapters.includes(chapter.id)" class="articles-list">
-              <div v-for="article in chapter.articles" :key="article.id" class="article-item" @click="goToArticle(article.id)">
-                <!-- 文章标题行 -->
-                <div class="article-title-row">
-                  <el-icon class="article-icon"><Document /></el-icon>
-                  <span class="article-title">
-                    {{ article.title }}
-                  </span>
-                </div>
-
-                <div class="article-meta">
-                  <span><el-icon><View /></el-icon> {{ article.view_count || 0 }}</span>
-                  <span><el-icon><Calendar /></el-icon> {{ formatDate(article.created_at) }}</span>
+            <!-- 一级章节下的内容 -->
+            <div v-show="expandedChapters.includes(chapter.id)" class="chapter-content">
+              <!-- 一级章节直接下的文章列表 -->
+              <div v-if="chapter.articles && chapter.articles.length > 0" class="articles-list">
+                <div v-for="article in chapter.articles" :key="article.id" class="article-item" @click="goToArticle(article.id)">
+                  <div class="article-title-row">
+                    <el-icon class="article-icon"><Document /></el-icon>
+                    <span class="article-title">{{ article.title }}</span>
+                  </div>
+                  <div class="article-meta">
+                    <span><el-icon><View /></el-icon> {{ article.view_count || 0 }}</span>
+                    <span><el-icon><Calendar /></el-icon> {{ formatDate(article.created_at) }}</span>
+                  </div>
                 </div>
               </div>
 
-              <el-empty v-if="!chapter.articles || chapter.articles.length === 0" description="该章节下暂无文章" :image-size="60" />
+              <!-- 二级章节列表 -->
+              <div v-if="chapter.sub_chapters && chapter.sub_chapters.length > 0" class="sub-chapters">
+                <div v-for="subChapter in chapter.sub_chapters" :key="subChapter.id" class="sub-chapter-section">
+                  <!-- 二级章节标题 -->
+                  <div
+                    class="sub-chapter-header"
+                    :class="{ expanded: expandedChapters.includes(subChapter.id) }"
+                    @click="toggleChapter(subChapter.id)"
+                  >
+                    <el-icon class="expand-icon">
+                      <ArrowRight v-if="!expandedChapters.includes(subChapter.id)" />
+                      <ArrowDown v-else />
+                    </el-icon>
+                    <h4 class="sub-chapter-name">{{ subChapter.name }}</h4>
+                    <span class="article-count">({{ subChapter.articles?.length || 0 }})</span>
+                  </div>
+
+                  <!-- 二级章节下的文章列表 -->
+                  <div v-show="expandedChapters.includes(subChapter.id)" class="articles-list sub-articles-list">
+                    <div v-for="article in subChapter.articles" :key="article.id" class="article-item" @click="goToArticle(article.id)">
+                      <div class="article-title-row">
+                        <el-icon class="article-icon"><Document /></el-icon>
+                        <span class="article-title">{{ article.title }}</span>
+                      </div>
+                      <div class="article-meta">
+                        <span><el-icon><View /></el-icon> {{ article.view_count || 0 }}</span>
+                        <span><el-icon><Calendar /></el-icon> {{ formatDate(article.created_at) }}</span>
+                      </div>
+                    </div>
+
+                    <el-empty v-if="!subChapter.articles || subChapter.articles.length === 0" description="该章节下暂无文章" :image-size="60" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- 如果一级章节既没有文章也没有子章节 -->
+              <el-empty v-if="(!chapter.articles || chapter.articles.length === 0) && (!chapter.sub_chapters || chapter.sub_chapters.length === 0)" description="该章节下暂无内容" :image-size="60" />
             </div>
           </div>
 
@@ -156,6 +191,20 @@ const toggleChapter = (chapterId) => {
   } else {
     expandedChapters.value.push(chapterId)
   }
+}
+
+// 计算章节下的总文章数（包括子章节的文章）
+const getTotalArticleCount = (chapter) => {
+  let count = chapter.articles?.length || 0
+
+  // 如果有子章节，累加子章节的文章数
+  if (chapter.sub_chapters && chapter.sub_chapters.length > 0) {
+    chapter.sub_chapters.forEach(subChapter => {
+      count += subChapter.articles?.length || 0
+    })
+  }
+
+  return count
 }
 
 const goToArticle = (articleId) => {
@@ -270,6 +319,61 @@ const formatDate = (dateString) => {
   border-radius: 8px 8px 0 0;
 }
 
+.chapter-content {
+  background-color: #fff;
+  border: 1px solid #e4e7ed;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 15px;
+}
+
+/* 二级章节样式 */
+.sub-chapters {
+  margin-top: 10px;
+}
+
+.sub-chapter-section {
+  margin-bottom: 10px;
+}
+
+.sub-chapter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  background-color: #79bbff;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 1px 4px rgba(121, 187, 255, 0.3);
+}
+
+.sub-chapter-header:hover {
+  background-color: #a0cfff;
+  box-shadow: 0 2px 8px rgba(121, 187, 255, 0.4);
+}
+
+.sub-chapter-header.expanded {
+  border-radius: 6px 6px 0 0;
+}
+
+.sub-chapter-name {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.sub-articles-list {
+  background-color: #f9f9f9;
+  border: 1px solid #e4e7ed;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  padding: 10px;
+}
+
 .expand-icon {
   flex-shrink: 0;
   font-size: 16px;
@@ -293,10 +397,11 @@ const formatDate = (dateString) => {
 
 .articles-list {
   background-color: #fff;
-  border: 1px solid #e4e7ed;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  padding: 15px;
+  padding: 0;
+}
+
+.sub-articles-list .article-item {
+  background-color: #fff;
 }
 
 .article-item {

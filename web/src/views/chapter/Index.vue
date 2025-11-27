@@ -26,6 +26,12 @@
       <el-table :data="chapters" v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="章节名称" />
+        <el-table-column label="父章节" width="150">
+          <template #default="{ row }">
+            <el-tag v-if="row.parent_id" type="info">{{ getParentChapterName(row.parent_id) }}</el-tag>
+            <span v-else style="color: #909399;">一级章节</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="tag" label="所属标签">
           <template #default="{ row }">
             <el-tag v-if="row.tag">{{ row.tag.name }}</el-tag>
@@ -49,7 +55,7 @@
     >
       <el-form :model="form" label-width="80px">
         <el-form-item label="标签" required>
-          <el-select v-model="form.tag_id" placeholder="请选择标签">
+          <el-select v-model="form.tag_id" placeholder="请选择标签" @change="handleTagChange">
             <el-option
               v-for="tag in tags"
               :key="tag.id"
@@ -57,6 +63,19 @@
               :value="tag.id"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item label="父章节">
+          <el-select v-model="form.parent_id" placeholder="不选则为一级章节" clearable>
+            <el-option
+              v-for="chapter in availableParentChapters"
+              :key="chapter.id"
+              :label="chapter.name"
+              :value="chapter.id"
+            />
+          </el-select>
+          <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+            不选择父章节时,将创建为一级章节
+          </div>
         </el-form-item>
         <el-form-item label="章节名称" required>
           <el-input v-model="form.name" placeholder="请输入章节名称" />
@@ -74,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 
@@ -89,6 +108,7 @@ const filters = ref({
 })
 const form = ref({
   tag_id: '',
+  parent_id: null,
   name: '',
   sort: 0
 })
@@ -123,11 +143,39 @@ const fetchChapters = async () => {
   }
 }
 
+// 可选的父章节列表（只显示同标签下的一级章节，且排除自己）
+const availableParentChapters = computed(() => {
+  if (!form.value.tag_id) return []
+
+  return chapters.value.filter(chapter => {
+    // 只显示同标签下的章节
+    if (chapter.tag_id !== form.value.tag_id) return false
+
+    // 排除自己
+    if (editingId.value && chapter.id === editingId.value) return false
+
+    // 只显示一级章节（没有父章节的）
+    return !chapter.parent_id
+  })
+})
+
+// 获取父章节名称
+const getParentChapterName = (parentId) => {
+  const parent = chapters.value.find(c => c.id === parentId)
+  return parent ? parent.name : ''
+}
+
+// 标签改变时，清空父章节选择
+const handleTagChange = () => {
+  form.value.parent_id = null
+}
+
 const showDialog = (row = null) => {
   if (row) {
     editingId.value = row.id
     form.value = {
       tag_id: row.tag_id,
+      parent_id: row.parent_id || null,
       name: row.name,
       sort: row.sort || 0
     }
@@ -135,6 +183,7 @@ const showDialog = (row = null) => {
     editingId.value = null
     form.value = {
       tag_id: '',
+      parent_id: null,
       name: '',
       sort: 0
     }
@@ -150,11 +199,22 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
+    const submitData = {
+      tag_id: form.value.tag_id,
+      name: form.value.name,
+      sort: form.value.sort
+    }
+
+    // 只有选择了父章节才添加 parent_id
+    if (form.value.parent_id) {
+      submitData.parent_id = form.value.parent_id
+    }
+
     if (editingId.value) {
-      await request.put(`/chapters/${editingId.value}`, form.value)
+      await request.put(`/chapters/${editingId.value}`, submitData)
       ElMessage.success('更新成功')
     } else {
-      await request.post('/chapters', form.value)
+      await request.post('/chapters', submitData)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false

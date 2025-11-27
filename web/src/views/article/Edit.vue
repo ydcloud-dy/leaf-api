@@ -33,17 +33,22 @@
         </el-form-item>
 
         <el-form-item label="章节">
-          <el-select v-model="form.chapter_id" placeholder="请选择章节(可选)" clearable>
+          <el-select v-model="form.chapter_id" placeholder="请选择章节(可选)" clearable filterable>
             <el-option
-              v-for="item in chapters"
+              v-for="item in flatChapters"
               :key="item.id"
-              :label="item.name"
+              :label="item.displayName"
               :value="item.id"
             >
-              <span>{{ item.name }}</span>
+              <span :style="{ paddingLeft: item.level === 2 ? '20px' : '0' }">
+                {{ item.level === 2 ? '└─ ' : '' }}{{ item.name }}
+              </span>
               <span v-if="item.tag" style="float: right; color: #8492a6; font-size: 13px">{{ item.tag.name }}</span>
             </el-option>
           </el-select>
+          <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+            带 └─ 符号的为二级章节
+          </div>
         </el-form-item>
 
         <el-form-item label="摘要" prop="summary">
@@ -115,6 +120,36 @@ const categories = ref([])
 const chapters = ref([])
 
 const isEdit = computed(() => !!route.params.id)
+
+// 将章节列表转换为扁平化的层级列表
+const flatChapters = computed(() => {
+  const result = []
+
+  // 先获取所有一级章节（没有父章节的）
+  const topLevelChapters = chapters.value.filter(c => !c.parent_id)
+
+  // 对每个一级章节，添加它和它的子章节
+  topLevelChapters.forEach(chapter => {
+    // 添加一级章节
+    result.push({
+      ...chapter,
+      level: 1,
+      displayName: chapter.name
+    })
+
+    // 查找该一级章节的所有子章节
+    const subChapters = chapters.value.filter(c => c.parent_id === chapter.id)
+    subChapters.forEach(subChapter => {
+      result.push({
+        ...subChapter,
+        level: 2,
+        displayName: `  └─ ${subChapter.name}`
+      })
+    })
+  })
+
+  return result
+})
 
 // 上传配置
 const uploadAction = computed(() => '/api/files/upload')

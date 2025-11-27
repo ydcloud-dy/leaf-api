@@ -56,34 +56,36 @@ func (s *ChapterService) GetChapter(c *gin.Context) {
 // CreateChapter 创建章节
 func (s *ChapterService) CreateChapter(c *gin.Context) {
 	var req struct {
-		TagID uint   `json:"tag_id" binding:"required"`
-		Name  string `json:"name" binding:"required"`
-		Sort  int    `json:"sort"`
+		TagID    uint   `json:"tag_id" binding:"required"`
+		ParentID *uint  `json:"parent_id"` // 父章节ID，可选
+		Name     string `json:"name" binding:"required"`
+		Sort     int    `json:"sort"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, 400, "参数错误: "+err.Error())
 		return
 	}
-	
+
 	chapter := po.Chapter{
-		TagID: req.TagID,
-		Name:  req.Name,
-		Sort:  req.Sort,
+		TagID:    req.TagID,
+		ParentID: req.ParentID,
+		Name:     req.Name,
+		Sort:     req.Sort,
 	}
-	
+
 	if err := s.data.GetDB().Create(&chapter).Error; err != nil {
 		response.Error(c, 500, "创建章节失败")
 		return
 	}
-	
+
 	response.Success(c, chapter)
 }
 
 // UpdateChapter 更新章节
 func (s *ChapterService) UpdateChapter(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var chapter po.Chapter
 	if err := s.data.GetDB().First(&chapter, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -93,21 +95,25 @@ func (s *ChapterService) UpdateChapter(c *gin.Context) {
 		response.Error(c, 500, "获取章节失败")
 		return
 	}
-	
+
 	var req struct {
-		TagID *uint   `json:"tag_id"`
-		Name  *string `json:"name"`
-		Sort  *int    `json:"sort"`
+		TagID    *uint   `json:"tag_id"`
+		ParentID *uint   `json:"parent_id"` // 支持更新父章节ID
+		Name     *string `json:"name"`
+		Sort     *int    `json:"sort"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, 400, "参数错误: "+err.Error())
 		return
 	}
-	
+
 	updates := make(map[string]interface{})
 	if req.TagID != nil {
 		updates["tag_id"] = *req.TagID
+	}
+	if req.ParentID != nil {
+		updates["parent_id"] = *req.ParentID
 	}
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -115,12 +121,12 @@ func (s *ChapterService) UpdateChapter(c *gin.Context) {
 	if req.Sort != nil {
 		updates["sort"] = *req.Sort
 	}
-	
+
 	if err := s.data.GetDB().Model(&chapter).Updates(updates).Error; err != nil {
 		response.Error(c, 500, "更新章节失败")
 		return
 	}
-	
+
 	response.Success(c, chapter)
 }
 
@@ -155,6 +161,7 @@ func (s *ChapterService) DeleteChapter(c *gin.Context) {
 }
 
 // GetChaptersByTag 获取标签下的章节及文章(用于前端笔记页面)
+// 支持多级目录结构
 func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 	tagName := c.Param("tag")
 
@@ -204,23 +211,45 @@ func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 		sortArticlesByTitleNumber(articlesByChapter[chapterID])
 	}
 
-	// 组装结果
+	// 组装结果 - 构建树形结构
 	type ChapterWithArticles struct {
 		po.Chapter
-		Articles []po.Article `json:"articles"`
+		Articles     []po.Article           `json:"articles"`
+		SubChapters  []ChapterWithArticles  `json:"sub_chapters"`
 	}
 
-	var result []ChapterWithArticles
+	// 先构建一个章节ID到章节的映射
+	chapterMap := make(map[uint]*ChapterWithArticles)
 	for _, chapter := range chapters {
 		articles := articlesByChapter[chapter.ID]
 		if articles == nil {
 			articles = []po.Article{}
 		}
 
-		result = append(result, ChapterWithArticles{
-			Chapter:  chapter,
-			Articles: articles,
-		})
+		chapterMap[chapter.ID] = &ChapterWithArticles{
+			Chapter:     chapter,
+			Articles:    articles,
+			SubChapters: []ChapterWithArticles{},
+		}
+	}
+
+	// 构建树形结构 - 先找出所有子章节并添加到父章节的 SubChapters 中
+	for _, chapter := range chapters {
+		if chapter.ParentID != nil {
+			// 如果是子章节，添加到父章节的 SubChapters 中
+			if parentChapter, ok := chapterMap[*chapter.ParentID]; ok {
+				chapterItem := chapterMap[chapter.ID]
+				parentChapter.SubChapters = append(parentChapter.SubChapters, *chapterItem)
+			}
+		}
+	}
+
+	// 然后构建结果列表,只包含一级章节
+	var result []ChapterWithArticles
+	for _, chapter := range chapters {
+		if chapter.ParentID == nil {
+			result = append(result, *chapterMap[chapter.ID])
+		}
 	}
 
 	response.Success(c, result)
