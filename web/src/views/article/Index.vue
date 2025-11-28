@@ -30,6 +30,12 @@
       <div v-if="selectedArticles.length > 0" style="margin-bottom: 15px">
         <el-alert type="info" :closable="false">
           已选择 {{ selectedArticles.length }} 篇文章
+          <el-button size="small" type="success" @click="handleBatchPublish" style="margin-left: 10px">
+            批量上架
+          </el-button>
+          <el-button size="small" type="warning" @click="handleBatchOffline" style="margin-left: 10px">
+            批量下架
+          </el-button>
           <el-button size="small" type="primary" @click="batchUpdateDialogVisible = true" style="margin-left: 10px">
             批量更新
           </el-button>
@@ -505,6 +511,75 @@ const handleBatchDelete = async () => {
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(error.response?.data?.message || '批量删除失败')
+    }
+  }
+}
+
+const handleBatchPublish = async () => {
+  if (selectedArticles.value.length === 0) {
+    ElMessage.warning('请先选择要上架的文章')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要上架选中的 ${selectedArticles.value.length} 篇文章吗？`,
+      '批量上架确认',
+      {
+        type: 'success',
+        confirmButtonText: '确定上架',
+        cancelButtonText: '取消'
+      }
+    )
+
+    // 使用批量更新字段接口,只更新状态
+    const payload = {
+      article_ids: selectedArticles.value.map(a => a.id)
+    }
+
+    // 批量更新状态为已发布
+    for (const article of selectedArticles.value) {
+      await request.patch(`/articles/${article.id}/status`, { status: 1 })
+    }
+
+    ElMessage.success(`成功上架 ${selectedArticles.value.length} 篇文章`)
+    selectedArticles.value = []
+    fetchArticles()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.message || '批量上架失败')
+    }
+  }
+}
+
+const handleBatchOffline = async () => {
+  if (selectedArticles.value.length === 0) {
+    ElMessage.warning('请先选择要下架的文章')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要下架选中的 ${selectedArticles.value.length} 篇文章吗？`,
+      '批量下架确认',
+      {
+        type: 'warning',
+        confirmButtonText: '确定下架',
+        cancelButtonText: '取消'
+      }
+    )
+
+    // 批量更新状态为已下架
+    for (const article of selectedArticles.value) {
+      await request.patch(`/articles/${article.id}/status`, { status: 2 })
+    }
+
+    ElMessage.success(`成功下架 ${selectedArticles.value.length} 篇文章`)
+    selectedArticles.value = []
+    fetchArticles()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.message || '批量下架失败')
     }
   }
 }
