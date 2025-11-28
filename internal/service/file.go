@@ -66,9 +66,13 @@ func (s *FileService) Upload(c *gin.Context) {
 
 // List 查询文件列表
 func (s *FileService) List(c *gin.Context) {
-	// 解析分页参数
+	// 解析分页参数 (兼容 page_size 和 limit 两种参数名)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	pageSize := c.Query("page_size")
+	if pageSize == "" {
+		pageSize = c.DefaultQuery("limit", "20")
+	}
+	limit, _ := strconv.Atoi(pageSize)
 
 	files, total, err := s.data.FileRepo.List(page, limit)
 	if err != nil {
