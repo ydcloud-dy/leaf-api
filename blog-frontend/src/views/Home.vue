@@ -137,7 +137,8 @@ const fetchArticles = async () => {
     const { data } = await getArticles({
       page: currentPage.value,
       page_size: pageSize.value,
-      status: 1 // 只获取已发布的文章
+      status: 1, // 只获取已发布的文章
+      sort: 'views' // 按浏览量排序
     })
     articles.value = data.list || []
     total.value = data.total || 0
