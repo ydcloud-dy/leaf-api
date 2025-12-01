@@ -121,5 +121,6 @@ type TagInfo struct {
 type AuthorInfo struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`
+	Nickname string `json:"nickname"`
 	Avatar   string `json:"avatar"`
 }

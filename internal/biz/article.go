@@ -273,6 +273,7 @@ func (uc *articleUseCase) convertToArticleResponse(article *po.Article) *dto.Art
 		resp.Author = &dto.AuthorInfo{
 			ID:       article.Author.ID,
 			Username: article.Author.Username,
+			Nickname: article.Author.Nickname,
 			Avatar:   article.Author.Avatar,
 		}
 	}
@@ -322,6 +323,7 @@ func (uc *articleUseCase) convertToArticleListItem(article *po.Article) dto.Arti
 		item.Author = &dto.AuthorInfo{
 			ID:       article.Author.ID,
 			Username: article.Author.Username,
+			Nickname: article.Author.Nickname,
 			Avatar:   article.Author.Avatar,
 		}
 	}
