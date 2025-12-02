@@ -32,7 +32,6 @@ vendor/
 
 # Documentation
 *.md
-docs/
 
 # Deployment
 deploy/
