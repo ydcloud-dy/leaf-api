@@ -22,6 +22,17 @@ func NewChapterService(d *data.Data) *ChapterService {
 }
 
 // GetChapters 获取章节列表(按标签)
+// @Summary 获取章节列表
+// @Description 获取章节列表，可按标签ID筛选
+// @Tags 章节管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tag_id query int false "标签ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /chapters [get]
 func (s *ChapterService) GetChapters(c *gin.Context) {
 	tagID := c.Query("tag_id")
 	
@@ -37,6 +48,18 @@ func (s *ChapterService) GetChapters(c *gin.Context) {
 }
 
 // GetChapter 获取章节详情
+// @Summary 获取章节详情
+// @Description 根据ID获取章节详细信息
+// @Tags 章节管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "章节ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 404 {object} response.Response "章节不存在"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /chapters/{id} [get]
 func (s *ChapterService) GetChapter(c *gin.Context) {
 	id := c.Param("id")
 	
@@ -54,6 +77,18 @@ func (s *ChapterService) GetChapter(c *gin.Context) {
 }
 
 // CreateChapter 创建章节
+// @Summary 创建章节
+// @Description 创建新的文章章节
+// @Tags 章节管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object{tag_id=uint,parent_id=uint,name=string,sort=int} true "章节信息"
+// @Success 200 {object} response.Response "创建成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /chapters [post]
 func (s *ChapterService) CreateChapter(c *gin.Context) {
 	var req struct {
 		TagID    uint   `json:"tag_id" binding:"required"`
@@ -83,6 +118,20 @@ func (s *ChapterService) CreateChapter(c *gin.Context) {
 }
 
 // UpdateChapter 更新章节
+// @Summary 更新章节
+// @Description 更新章节信息
+// @Tags 章节管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "章节ID"
+// @Param request body object{tag_id=uint,parent_id=uint,name=string,sort=int} true "章节信息"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 404 {object} response.Response "章节不存在"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /chapters/{id} [put]
 func (s *ChapterService) UpdateChapter(c *gin.Context) {
 	id := c.Param("id")
 
@@ -131,6 +180,19 @@ func (s *ChapterService) UpdateChapter(c *gin.Context) {
 }
 
 // DeleteChapter 删除章节
+// @Summary 删除章节
+// @Description 根据ID删除章节（章节下有文章时无法删除）
+// @Tags 章节管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "章节ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.Response "请求参数错误或章节下有文章"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 404 {object} response.Response "章节不存在"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /chapters/{id} [delete]
 func (s *ChapterService) DeleteChapter(c *gin.Context) {
 	id := c.Param("id")
 	
@@ -162,6 +224,16 @@ func (s *ChapterService) DeleteChapter(c *gin.Context) {
 
 // GetChaptersByTag 获取标签下的章节及文章(用于前端笔记页面)
 // 支持多级目录结构
+// @Summary 获取标签下的章节和文章
+// @Description 获取指定标签下的章节树形结构及文章列表（用于前端笔记页面）
+// @Tags 博客前台
+// @Accept json
+// @Produce json
+// @Param tag path string true "标签名称"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 404 {object} response.Response "标签不存在"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/chapters/{tag} [get]
 func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 	tagName := c.Param("tag")
 

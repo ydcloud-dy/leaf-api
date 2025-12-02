@@ -1,40 +1,39 @@
-# Reference https://github.com/github/gitignore/blob/master/Go.gitignore
-# Binaries for programs and plugins
+# Binaries
+leaf-api
+bin/
 *.exe
 *.exe~
 *.dll
+*.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Test binary
 *.test
-.*
-# Output of the go coverage tool, specifically when used with LiteIDE
+
+# Output of the go coverage tool
 *.out
 
-# Dependency directories (remove the comment below to include it)
-vendor/
-blog-frontend/node_modules/
-web/node_modules/
-# Go workspace file
-go.work
-
-# Compiled Object files, Static and Dynamic libs (Shared Objects)
-*.o
-*.a
-*.so
-*.claude
-# OS General
-Thumbs.db
-.DS_Store
-
-# project
-*.cert
-*.key
+# Logs
 *.log
-bin/
+logs/
 
+# Uploads
 uploads/
-# Develop tools
-.vscode/
+
+# IDE
 .idea/
+.vscode/
 *.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (if contains sensitive info)
+# config.yaml
+
+# Temporary files
+tmp/
+temp/

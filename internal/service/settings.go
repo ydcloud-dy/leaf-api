@@ -20,6 +20,16 @@ func NewSettingsService(d *data.Data) *SettingsService {
 }
 
 // Get 获取所有设置
+// @Summary 获取系统设置
+// @Description 获取所有系统配置项
+// @Tags 系统设置
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /settings [get]
 func (s *SettingsService) Get(c *gin.Context) {
 	settings, err := s.data.SettingRepo.List()
 	if err != nil {
@@ -37,6 +47,18 @@ func (s *SettingsService) Get(c *gin.Context) {
 }
 
 // Update 更新设置
+// @Summary 更新系统设置
+// @Description 批量更新系统配置项
+// @Tags 系统设置
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body map[string]string true "配置项键值对"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /settings [put]
 func (s *SettingsService) Update(c *gin.Context) {
 	var req map[string]string
 	if err := c.ShouldBindJSON(&req); err != nil {

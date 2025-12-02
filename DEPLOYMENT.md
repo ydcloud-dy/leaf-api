@@ -304,23 +304,6 @@ docker run -d \
   -e REDIS_HOST=leaf-redis \
   leaf-api:latest
 
-# 5. 构建并启动博客前端
-cd blog-frontend
-docker build -t blog-frontend:latest .
-docker run -d \
-  --name leaf-blog-frontend \
-  --network leaf-network \
-  -p 3000:80 \
-  blog-frontend:latest
-
-# 6. 构建并启动管理后台
-cd ../web
-docker build -t admin-frontend:latest .
-docker run -d \
-  --name leaf-admin-frontend \
-  --network leaf-network \
-  -p 3001:80 \
-  admin-frontend:latest
 ```
 
 ---

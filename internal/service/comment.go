@@ -22,6 +22,20 @@ func NewCommentService(commentUseCase biz.CommentUseCase) *CommentService {
 }
 
 // List 查询评论列表
+// @Summary 获取评论列表
+// @Description 分页获取评论列表，支持按文章ID和状态筛选
+// @Tags 评论管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param limit query int false "每页数量" default(10)
+// @Param article_id query int false "文章ID"
+// @Param status query string false "评论状态"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /comments [get]
 func (s *CommentService) List(c *gin.Context) {
 	// 解析分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -46,6 +60,18 @@ func (s *CommentService) List(c *gin.Context) {
 }
 
 // Delete 删除评论
+// @Summary 删除评论
+// @Description 根据ID删除评论
+// @Tags 评论管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "评论ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /comments/{id} [delete]
 func (s *CommentService) Delete(c *gin.Context) {
 	var req dto.IDRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -62,6 +88,19 @@ func (s *CommentService) Delete(c *gin.Context) {
 }
 
 // UpdateStatus 更新评论状态
+// @Summary 更新评论状态
+// @Description 更新评论的审核状态（待审核/已通过/已拒绝）
+// @Tags 评论管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "评论ID"
+// @Param request body object{status=int} true "状态信息 0:待审核 1:已通过 2:已拒绝"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /comments/{id}/status [patch]
 func (s *CommentService) UpdateStatus(c *gin.Context) {
 	var idReq dto.IDRequest
 	if err := c.ShouldBindUri(&idReq); err != nil {

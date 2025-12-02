@@ -24,6 +24,19 @@ func NewFileService(d *data.Data) *FileService {
 }
 
 // Upload 上传文件
+// @Summary 上传文件
+// @Description 上传文件到OSS，支持图片、视频等多种文件类型
+// @Tags 文件管理
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "文件"
+// @Param folder formData string false "文件夹名称" default(uploads)
+// @Success 200 {object} response.Response "上传成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /files/upload [post]
 func (s *FileService) Upload(c *gin.Context) {
 	// 获取上传的文件
 	file, err := c.FormFile("file")
@@ -65,6 +78,18 @@ func (s *FileService) Upload(c *gin.Context) {
 }
 
 // List 查询文件列表
+// @Summary 获取文件列表
+// @Description 分页获取已上传的文件列表
+// @Tags 文件管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /files [get]
 func (s *FileService) List(c *gin.Context) {
 	// 解析分页参数 (兼容 page_size 和 limit 两种参数名)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -84,6 +109,18 @@ func (s *FileService) List(c *gin.Context) {
 }
 
 // Delete 删除文件
+// @Summary 删除文件
+// @Description 删除OSS上的文件及数据库记录
+// @Tags 文件管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "文件ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /files/{id} [delete]
 func (s *FileService) Delete(c *gin.Context) {
 	var req dto.IDRequest
 	if err := c.ShouldBindUri(&req); err != nil {

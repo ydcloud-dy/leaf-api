@@ -22,6 +22,18 @@ func NewUserService(userUseCase biz.UserUseCase) *UserService {
 }
 
 // Create 创建用户
+// @Summary 创建用户
+// @Description 创建新用户
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateUserRequest true "用户信息"
+// @Success 200 {object} response.Response "创建成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /users [post]
 func (s *UserService) Create(c *gin.Context) {
 	var req dto.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,6 +51,19 @@ func (s *UserService) Create(c *gin.Context) {
 }
 
 // Update 更新用户
+// @Summary 更新用户
+// @Description 更新用户信息
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Param request body dto.UpdateUserRequest true "用户信息"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /users/{id} [put]
 func (s *UserService) Update(c *gin.Context) {
 	var idReq dto.IDRequest
 	if err := c.ShouldBindUri(&idReq); err != nil {
@@ -62,6 +87,18 @@ func (s *UserService) Update(c *gin.Context) {
 }
 
 // Delete 删除用户
+// @Summary 删除用户
+// @Description 根据ID删除用户
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /users/{id} [delete]
 func (s *UserService) Delete(c *gin.Context) {
 	var req dto.IDRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -78,6 +115,18 @@ func (s *UserService) Delete(c *gin.Context) {
 }
 
 // GetByID 根据 ID 查询用户
+// @Summary 获取用户详情
+// @Description 根据ID获取用户详细信息
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /users/{id} [get]
 func (s *UserService) GetByID(c *gin.Context) {
 	var req dto.IDRequest
 	if err := c.ShouldBindUri(&req); err != nil {
@@ -95,6 +144,20 @@ func (s *UserService) GetByID(c *gin.Context) {
 }
 
 // List 查询用户列表
+// @Summary 获取用户列表
+// @Description 分页获取用户列表，支持关键词搜索和状态筛选
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param limit query int false "每页数量" default(10)
+// @Param keyword query string false "搜索关键词"
+// @Param status query string false "用户状态"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /users [get]
 func (s *UserService) List(c *gin.Context) {
 	var req dto.UserListRequest
 

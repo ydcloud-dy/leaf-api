@@ -33,6 +33,14 @@ func NewOnlineService(d *data.Data) *OnlineService {
 }
 
 // RecordHeartbeat 记录用户心跳（保持在线状态）
+// @Summary 记录用户心跳
+// @Description 记录用户在线状态，登录用户按UserID追踪，未登录按IP追踪
+// @Tags 在线追踪
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response "记录成功"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/heartbeat [post]
 func (s *OnlineService) RecordHeartbeat(c *gin.Context) {
 	// 获取用户ID（如果已登录）
 	userIDValue, exists := c.Get("user_id")
@@ -87,6 +95,16 @@ func NewVisitService(d *data.Data) *VisitService {
 }
 
 // RecordVisitDuration 记录页面访问时长
+// @Summary 记录页面访问时长
+// @Description 记录用户访问页面的时长信息，用于统计分析
+// @Tags 在线追踪
+// @Accept json
+// @Produce json
+// @Param request body object{path=string,duration=int} true "访问信息 path:页面路径 duration:停留时长(秒)"
+// @Success 200 {object} response.Response "记录成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/visit [post]
 func (s *VisitService) RecordVisitDuration(c *gin.Context) {
 	var req struct {
 		Path     string `json:"path" binding:"required"`

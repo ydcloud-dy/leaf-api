@@ -1,6 +1,6 @@
-# Leaf API - 后端服务
+# Leaf API
 
-基于 Go + Gin 框架开发的博客系统后端 API 服务。
+一个基于 Go + Gin 开发的博客系统后端服务，项目架构参考了 [Kratos](https://go-kratos.dev/) 的分层设计理念，同时结合实际业务需求做了适配和简化。
 
 ## 📋 目录
 
@@ -15,8 +15,9 @@
   - [Docker 部署](#docker-部署)
   - [Docker Compose 部署](#docker-compose-部署)
   - [Kubernetes 部署](#kubernetes-部署)
-- [配置说明](#️-配置说明)
+- [配置说明](#-配置说明)
 - [API 文档](#-api-文档)
+  - [Swagger 文档](#swagger-文档推荐)
   - [管理后台 API](#管理后台-api)
   - [博客前台 API](#博客前台-api)
 - [开发相关](#-开发相关)
@@ -36,28 +37,31 @@
 
 ## 🏗 项目架构
 
-采用分层架构设计：
+项目采用了类似 Kratos 的分层架构设计，不过做了一些简化和调整以适应实际需求：
 
 ```
 ┌─────────────────┐
-│   HTTP Layer    │  (Gin Router + Middleware)
+│   HTTP Layer    │  Gin 路由 + 中间件
 ├─────────────────┤
-│  Service Layer  │  (HTTP Handler)
+│  Service Layer  │  处理 HTTP 请求
 ├─────────────────┤
-│    Biz Layer    │  (Business Logic)
+│    Biz Layer    │  业务逻辑层（核心）
 ├─────────────────┤
-│   Data Layer    │  (Repository Pattern)
+│   Data Layer    │  数据访问层
 ├─────────────────┤
-│  Model Layer    │  (PO/DTO)
+│  Model Layer    │  数据模型（PO/DTO）
 └─────────────────┘
 ```
 
-**各层职责说明**：
-- **HTTP Layer**: 路由配置、中间件处理（认证、日志、CORS等）
-- **Service Layer**: HTTP 请求处理、参数验证、响应封装
-- **Biz Layer**: 核心业务逻辑、业务规则
-- **Data Layer**: 数据库操作、缓存操作
-- **Model Layer**: 数据模型定义（PO持久化对象、DTO数据传输对象）
+简单说下各层的职责：
+
+- **HTTP Layer**: 路由配置、中间件（JWT 认证、日志、跨域等）
+- **Service Layer**: 接收 HTTP 请求，做参数验证，调用 Biz 层处理，返回响应
+- **Biz Layer**: 这是核心，所有业务逻辑都在这里，保持与 HTTP 无关
+- **Data Layer**: 负责和数据库、Redis 打交道，用的是 Repository 模式
+- **Model Layer**: 数据模型，分为 PO（数据库模型）和 DTO（接口传输对象）
+
+这样分层的好处是职责清晰，改动某一层不会影响其他层，测试起来也方便。
 
 ## 📂 目录结构
 
@@ -128,28 +132,28 @@
 
 ### 环境要求
 
-- Go 1.21+
+- Go 1.21 或更高版本
 - MySQL 8.0+
 - Redis 7.x
 
 ### 本地开发
 
-1. **克隆项目**
+**1. 克隆项目**
 
 ```bash
 git clone https://github.com/ydcloud-dy/leaf-api.git
 cd leaf-api
 ```
 
-2. **安装依赖**
+**2. 安装依赖**
 
 ```bash
 go mod download
 ```
 
-3. **配置数据库**
+**3. 配置数据库**
 
-修改 `config.yaml` 中的数据库配置：
+修改 `config.yaml`，把数据库配置改成你本地的：
 
 ```yaml
 database:
@@ -161,71 +165,72 @@ database:
   charset: utf8mb4
 ```
 
-4. **启动 MySQL 和 Redis**
+**4. 启动必要服务**
 
 ```bash
-# MySQL
+# 启动 MySQL
 mysql.server start
 
-# Redis
+# 启动 Redis
 redis-server
 ```
 
-5. **运行应用**
+**5. 运行项目**
 
 ```bash
-# 开发模式
+# 直接运行
 go run main.go
 
-# 或使用编译后的二进制
+# 或者编译后运行
 go build -o leaf-api .
 ./leaf-api
 ```
 
-6. **访问服务**
+**6. 验证服务**
 
 - API 服务: http://localhost:8888
 - 健康检查: http://localhost:8888/ping
+
+如果能访问通，说明启动成功了。
 
 ## 📦 部署方式
 
 ### 裸部署
 
-使用自动化部署脚本：
+如果你想直接部署在服务器上，可以用我提供的自动化脚本：
 
 ```bash
-# 运行部署脚本
 chmod +x deploy/scripts/deploy.sh
 ./deploy/scripts/deploy.sh
 ```
 
-或手动部署：
+当然也可以手动操作：
 
 ```bash
-# 1. 构建
+# 编译
 go build -o leaf-api .
 
-# 2. 创建必要目录
+# 创建目录
 mkdir -p logs uploads
 
-# 3. 配置 config.yaml
+# 记得先配置好 config.yaml
 
-# 4. 启动
+# 启动服务
 ./leaf-api
 
-# 或后台运行
+# 后台运行的话
 nohup ./leaf-api > server.log 2>&1 &
 ```
 
 ### Docker 部署
 
-#### 构建镜像
+先构建镜像：
 
 ```bash
 docker build -t leaf-api:latest .
 ```
 
-#### 运行容器
+然后运行容器：
 
 ```bash
 docker run -d \
@@ -239,68 +244,71 @@ docker run -d \
   leaf-api:latest
 ```
 
+记得把 MySQL 和 Redis 的地址换成实际的。
+
 ### Docker Compose 部署
 
-**一键启动所有服务（推荐）**
+**推荐使用 Docker Compose 一键部署后端服务及其依赖**
 
 ```bash
-# 启动所有服务（API + MySQL + Redis + 前端）
+# 启动所有服务（API、MySQL、Redis）
 docker-compose up -d
 
-# 查看日志
+# 看日志
 docker-compose logs -f
 
 # 停止服务
 docker-compose down
 
-# 停止并清理数据
+# 如果想清理数据重新开始
 docker-compose down -v
 ```
 
-访问地址：
+启动后可以访问：
 - API 服务: http://localhost:8888
-- 网站端: http://localhost:3000
-- 管理端: http://localhost:3001
+- Swagger 文档: http://localhost:8888/swagger/index.html
 
 ### Kubernetes 部署
 
-#### 1. 创建命名空间和 PVC
+如果要部署到 K8s，按下面步骤来：
+
+**创建命名空间和 PVC**
 
 ```bash
 kubectl apply -f deploy/k8s/pvc.yaml
 ```
 
-#### 2. 部署应用
+**部署应用**
 
 ```bash
 kubectl apply -f deploy/k8s/deployment.yaml
 ```
 
-#### 3. 检查部署状态
+**检查状态**
 
 ```bash
-# 查看 Pod
+# 看 Pod 状态
 kubectl get pods -n leaf-blog
 
-# 查看服务
+# 看服务
 kubectl get svc -n leaf-blog
 
-# 查看日志
+# 看日志
 kubectl logs -f <pod-name> -n leaf-blog
 ```
 
-#### 4. 访问服务
+**访问服务**
 
 ```bash
-# 端口转发（用于测试）
+# 测试的话可以用端口转发
 kubectl port-forward svc/leaf-api-service 8888:8888 -n leaf-blog
 
-# 或配置 Ingress 后通过域名访问
+# 生产环境建议配置 Ingress
 ```
 
 ## ⚙️ 配置说明
 
-### config.yaml 配置项
+### 主要配置项
 
 ```yaml
 server:
@@ -345,18 +353,51 @@ log:
 
 ### 环境变量
 
-支持通过环境变量覆盖配置：
+也可以用环境变量覆盖配置文件，部署时比较方便：
 
-- `DB_HOST`: 数据库地址
-- `DB_PORT`: 数据库端口
-- `REDIS_HOST`: Redis 地址
-- `REDIS_PORT`: Redis 端口
+- `DB_HOST` - 数据库地址
+- `DB_PORT` - 数据库端口
+- `REDIS_HOST` - Redis 地址
+- `REDIS_PORT` - Redis 端口
 
 ## 📖 API 文档
 
+项目分为管理后台和博客前台两套 API，下面是详细说明。
+
+### Swagger 文档（推荐）
+
+项目已集成 Swagger，启动服务后可以直接访问交互式 API 文档。
+
+**访问地址**：
+- **Swagger UI**: http://localhost:8888/swagger/index.html （推荐，可视化界面）
+- **API JSON**: http://localhost:8888/swagger/doc.json
+
+**功能特点**：
+- 📖 自动生成的 API 文档，与代码保持同步
+- 🧪 可以直接在页面上测试接口
+- 🔐 支持 JWT 认证测试
+- 📝 详细的请求/响应示例
+
+**快速开始**：
+1. 启动服务：`./leaf-api`
+2. 打开浏览器访问：http://localhost:8888/swagger/index.html
+3. 点击接口可查看详情，点击 "Try it out" 可测试
+
+**添加新接口文档**：
+```bash
+# 1. 在代码中添加 Swagger 注释（参考 internal/service/auth.go）
+# 2. 重新生成文档
+swag init
+# 3. 重启服务
+```
+
+详细使用说明请查看：[SWAGGER_USAGE.md](./SWAGGER_USAGE.md)
+
+---
+
 ### 管理后台 API
 
-**基础路径**: `/`（需要 JWT 认证，除登录接口外）
+管理后台的接口大部分都需要登录，请求时要带上 JWT Token。
 
 #### 认证相关 `/auth`
 
@@ -452,7 +493,7 @@ log:
 
 ### 博客前台 API
 
-**基础路径**: `/blog`
+博客前台的接口大部分是公开的，部分功能（点赞、评论等）需要登录。
 
 #### 认证相关 `/blog/auth`
 
@@ -531,9 +572,9 @@ log:
 | POST | `/blog/visit` | 记录访问时长 | 可选 |
 
 **说明**：
-- ✓ 表示需要在请求头中携带 `Authorization: Bearer <token>`
-- ✗ 表示无需认证即可访问
-- 可选表示支持登录和未登录两种状态，登录后返回更多数据
+- ✓ 需要登录，请求头带上 `Authorization: Bearer <token>`
+- ✗ 不需要登录
+- 可选 表示登录和不登录都行，登录后能看到更多信息（比如点赞状态）
 
 ## 🔧 开发相关
 
@@ -555,15 +596,39 @@ go fmt ./...
 go vet ./...
 ```
 
-## 📝 License
+### 依赖注入
 
-MIT License
+项目使用了 Google Wire 做依赖注入，如果修改了 `cmd/wire.go`，记得重新生成代码：
 
-## 👥 贡献
+```bash
+# 安装 wire（首次）
+go install github.com/google/wire/cmd/wire@latest
 
-欢迎提交 Issue 和 Pull Request！
+# 生成依赖注入代码
+cd cmd && wire
+```
 
-## 📞 联系方式
+### 生成 API 文档
 
-- 项目地址: https://github.com/ydcloud-dy/leaf-api
-- 问题反馈: https://github.com/ydcloud-dy/leaf-api/issues
+项目支持 Swagger 自动生成 API 文档：
+
+```bash
+# 安装 swag（首次）
+go install github.com/swaggo/swag/cmd/swag@latest
+
+# 生成文档
+swag init
+
+# 启动服务后访问
+# http://localhost:8888/swagger/index.html
+```
+
+## 📝 说明
+
+- 项目架构参考了 [Kratos](https://go-kratos.dev/) 框架的设计思想
+- 使用 MIT 协议开源
+- 如果对你有帮助，欢迎 Star ⭐
+
+## 📞 反馈
+
+遇到问题或有建议？欢迎提 [Issue](https://github.com/ydcloud-dy/leaf-api/issues)。

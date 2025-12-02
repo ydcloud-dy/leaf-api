@@ -26,6 +26,14 @@ func NewStatsService(d *data.Data) *StatsService {
 }
 
 // GetStats 获取统计数据
+// @Summary 获取统计数据
+// @Description 获取网站统计数据（文章数、用户数、浏览量、在线人数等）
+// @Tags 统计数据
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/stats [get]
 func (s *StatsService) GetStats(c *gin.Context) {
 	var stats struct {
 		ArticleCount       int64   `json:"article_count"`        // 文章总数
@@ -88,6 +96,14 @@ func (s *StatsService) GetStats(c *gin.Context) {
 }
 
 // GetHotArticles 获取热门文章
+// @Summary 获取热门文章
+// @Description 获取浏览量最高的热门文章（Top 10）
+// @Tags 统计数据
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/stats/hot-articles [get]
 func (s *StatsService) GetHotArticles(c *gin.Context) {
 	var articles []po.Article
 	s.data.GetDB().Model(&po.Article{}).

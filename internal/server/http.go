@@ -5,11 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/ydcloud-dy/leaf-api/internal/biz"
 	"github.com/ydcloud-dy/leaf-api/internal/data"
 	"github.com/ydcloud-dy/leaf-api/internal/server/middleware"
 	"github.com/ydcloud-dy/leaf-api/internal/service"
 	"github.com/ydcloud-dy/leaf-api/pkg/logger"
+
+	_ "github.com/ydcloud-dy/leaf-api/docs" // Swagger 文档
 )
 
 // HTTPServer HTTP 服务器
@@ -39,6 +43,14 @@ func NewHTTPServer(b *biz.Biz, d *data.Data) *HTTPServer {
 
 	// 静态文件服务（用于本地文件上传）
 	r.Static("/uploads", "./uploads")
+
+	// Swagger 文档路由
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// 健康检查
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "pong"})
+	})
 
 	// 初始化服务
 	authService := service.NewAuthService(b.AuthUseCase)
