@@ -635,4 +635,9 @@ swag init
 
 ## 📞 反馈
 
-遇到问题或有建议？欢迎提 [Issue](https://github.com/ydcloud-dy/leaf-api/issues)。
+如有问题或建议，请通过以下方式联系：
+
+- 提交 [Issue](https://github.com/ydcloud-dy/leaf-ui-frontend/issues)
+- 发送邮件至：dycloudlove@163.com
+- 📡：![img.png](wx.png)
+
