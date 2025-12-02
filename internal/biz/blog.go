@@ -234,6 +234,7 @@ func (uc *blogUseCase) GetArticleDetail(articleID, userID uint) (*dto.ArticleDet
 		articleResp.Author = &dto.AuthorInfo{
 			ID:       article.Author.ID,
 			Username: article.Author.Username,
+			Nickname: article.Author.Nickname,
 			Avatar:   article.Author.Avatar,
 		}
 	}
@@ -322,17 +323,59 @@ func (uc *blogUseCase) GetUserLikes(userID uint, page, limit int) (*dto.LikeList
 
 	likeList := make([]dto.LikeInfo, 0, len(likes))
 	for _, like := range likes {
+		articleResp := &dto.ArticleResponse{
+			ID:            like.Article.ID,
+			Title:         like.Article.Title,
+			Summary:       like.Article.Summary,
+			Cover:         like.Article.Cover,
+			AuthorID:      like.Article.AuthorID,
+			CategoryID:    like.Article.CategoryID,
+			Status:        like.Article.Status,
+			ViewCount:     like.Article.ViewCount,
+			LikeCount:     like.Article.LikeCount,
+			FavoriteCount: like.Article.FavoriteCount,
+			CommentCount:  like.Article.CommentCount,
+			CreatedAt:     like.Article.CreatedAt,
+		}
+
+		// 添加作者信息
+		if like.Article.Author.ID > 0 {
+			articleResp.Author = &dto.AuthorInfo{
+				ID:       like.Article.Author.ID,
+				Username: like.Article.Author.Username,
+				Nickname: like.Article.Author.Nickname,
+				Avatar:   like.Article.Author.Avatar,
+			}
+		}
+
+		// 添加分类信息
+		if like.Article.Category.ID > 0 {
+			articleResp.Category = &dto.CategoryInfo{
+				ID:          like.Article.Category.ID,
+				Name:        like.Article.Category.Name,
+				Description: like.Article.Category.Description,
+			}
+		}
+
+		// 添加标签信息
+		if len(like.Article.Tags) > 0 {
+			tags := make([]dto.TagInfo, 0, len(like.Article.Tags))
+			for _, tag := range like.Article.Tags {
+				tags = append(tags, dto.TagInfo{
+					ID:    tag.ID,
+					Name:  tag.Name,
+					Color: tag.Color,
+				})
+			}
+			articleResp.Tags = tags
+		}
+
 		likeList = append(likeList, dto.LikeInfo{
 			ID:        like.ID,
 			ArticleID: like.ArticleID,
 			UserID:    like.UserID,
 			CreatedAt: like.CreatedAt,
-			Article: &dto.ArticleResponse{
-				ID:      like.Article.ID,
-				Title:   like.Article.Title,
-				Summary: like.Article.Summary,
-				Cover:   like.Article.Cover,
-			},
+			Article:   articleResp,
 		})
 	}
 
@@ -392,17 +435,59 @@ func (uc *blogUseCase) GetUserFavorites(userID uint, page, limit int) (*dto.Favo
 
 	favoriteList := make([]dto.FavoriteInfo, 0, len(favorites))
 	for _, favorite := range favorites {
+		articleResp := &dto.ArticleResponse{
+			ID:            favorite.Article.ID,
+			Title:         favorite.Article.Title,
+			Summary:       favorite.Article.Summary,
+			Cover:         favorite.Article.Cover,
+			AuthorID:      favorite.Article.AuthorID,
+			CategoryID:    favorite.Article.CategoryID,
+			Status:        favorite.Article.Status,
+			ViewCount:     favorite.Article.ViewCount,
+			LikeCount:     favorite.Article.LikeCount,
+			FavoriteCount: favorite.Article.FavoriteCount,
+			CommentCount:  favorite.Article.CommentCount,
+			CreatedAt:     favorite.Article.CreatedAt,
+		}
+
+		// 添加作者信息
+		if favorite.Article.Author.ID > 0 {
+			articleResp.Author = &dto.AuthorInfo{
+				ID:       favorite.Article.Author.ID,
+				Username: favorite.Article.Author.Username,
+				Nickname: favorite.Article.Author.Nickname,
+				Avatar:   favorite.Article.Author.Avatar,
+			}
+		}
+
+		// 添加分类信息
+		if favorite.Article.Category.ID > 0 {
+			articleResp.Category = &dto.CategoryInfo{
+				ID:          favorite.Article.Category.ID,
+				Name:        favorite.Article.Category.Name,
+				Description: favorite.Article.Category.Description,
+			}
+		}
+
+		// 添加标签信息
+		if len(favorite.Article.Tags) > 0 {
+			tags := make([]dto.TagInfo, 0, len(favorite.Article.Tags))
+			for _, tag := range favorite.Article.Tags {
+				tags = append(tags, dto.TagInfo{
+					ID:    tag.ID,
+					Name:  tag.Name,
+					Color: tag.Color,
+				})
+			}
+			articleResp.Tags = tags
+		}
+
 		favoriteList = append(favoriteList, dto.FavoriteInfo{
 			ID:        favorite.ID,
 			ArticleID: favorite.ArticleID,
 			UserID:    favorite.UserID,
 			CreatedAt: favorite.CreatedAt,
-			Article: &dto.ArticleResponse{
-				ID:      favorite.Article.ID,
-				Title:   favorite.Article.Title,
-				Summary: favorite.Article.Summary,
-				Cover:   favorite.Article.Cover,
-			},
+			Article:   articleResp,
 		})
 	}
 
@@ -611,12 +696,19 @@ func (uc *blogUseCase) DeleteComment(commentID, userID uint) error {
 		return errors.New("评论不存在")
 	}
 
-	// 权限检查：只有评论作者本人可以删除自己的评论
-	// 如果是子评论，父评论作者也可以删除
+	// 权限检查：评论作者本人、管理员或父评论作者可以删除
 	canDelete := comment.UserID == userID
 
+	// 检查是否为管理员
+	if !canDelete {
+		user, err := uc.data.UserRepo.FindByID(userID)
+		if err == nil && user.Role == "admin" {
+			canDelete = true
+		}
+	}
+
+	// 如果是子评论，父评论作者也可以删除
 	if !canDelete && comment.ParentID != nil {
-		// 检查是否为父评论作者
 		parentComment, err := uc.data.CommentRepo.FindByID(*comment.ParentID)
 		if err == nil && parentComment.UserID == userID {
 			canDelete = true

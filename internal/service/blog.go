@@ -518,6 +518,34 @@ func (s *BlogService) CreateGuestbookMessage(c *gin.Context) {
 	response.Success(c, resp)
 }
 
+// DeleteGuestbookMessage 删除留言板消息
+// @Summary 删除留言板消息
+// @Description 删除留言板消息（需要是管理员或消息作者）
+// @Tags 博客前台
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "留言ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Router /blog/guestbook/{id} [delete]
+func (s *BlogService) DeleteGuestbookMessage(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	messageID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		response.BadRequest(c, "无效的留言ID")
+		return
+	}
+
+	if err := s.blogUseCase.DeleteComment(uint(messageID), userID); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // GetUserStats 获取用户统计信息
 // @Summary 获取用户统计信息
 // @Description 获取当前用户的统计信息（点赞数、收藏数等）

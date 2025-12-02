@@ -106,6 +106,7 @@ func registerRoutes(
 
 		// 留言板
 		blogAuthed.POST("/guestbook", blogService.CreateGuestbookMessage)
+		blogAuthed.DELETE("/guestbook/:id", blogService.DeleteGuestbookMessage)
 	}
 
 	// 管理后台 API 路由（需要 JWT 验证）
