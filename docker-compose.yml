@@ -4,7 +4,7 @@ services:
   # MySQL 数据库
   mysql:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/mysql:8.0.43
-    container_name: leaf-mysql
+    container_name: leaf-mysql-new
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: 123456
@@ -28,7 +28,7 @@ services:
   # Redis 缓存
   redis:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/redis:7-alpine
-    container_name: leaf-redis
+    container_name: leaf-redis-new
     restart: always
     ports:
       - "6379:6379"
@@ -48,7 +48,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: leaf-api
+    container_name: leaf-api-new
     restart: always
     ports:
       - "8888:8888"
@@ -74,34 +74,6 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
-
-  # 网站端前端
-  blog-frontend:
-    build:
-      context: ./blog-frontend
-      dockerfile: Dockerfile
-    container_name: leaf-blog-frontend
-    restart: always
-    ports:
-      - "3000:80"
-    depends_on:
-      - api
-    networks:
-      - leaf-network
-
-  # 管理端前端
-  admin-frontend:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: leaf-admin-frontend
-    restart: always
-    ports:
-      - "3001:80"
-    depends_on:
-      - api
-    networks:
-      - leaf-network
 
 volumes:
   mysql_data:
