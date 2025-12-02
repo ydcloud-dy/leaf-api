@@ -456,6 +456,10 @@ func (uc *articleUseCase) BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) e
 		updates["chapter_id"] = *req.ChapterID
 	}
 
+	if req.CreatedAt != nil {
+		updates["created_at"] = *req.CreatedAt
+	}
+
 	// 更新基础字段
 	if len(updates) > 0 {
 		if err := uc.data.ArticleRepo.BatchUpdateFields(req.ArticleIDs, updates); err != nil {

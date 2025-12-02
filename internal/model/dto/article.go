@@ -43,11 +43,12 @@ type BatchUpdateCoverRequest struct {
 
 // BatchUpdateFieldsRequest 批量更新字段请求
 type BatchUpdateFieldsRequest struct {
-	ArticleIDs []uint  `json:"article_ids" binding:"required,min=1"`
-	Cover      *string `json:"cover"`       // 封面，可选
-	CategoryID *uint   `json:"category_id"` // 分类ID，可选
-	ChapterID  *uint   `json:"chapter_id"`  // 章节ID，可选
-	TagIDs     []uint  `json:"tag_ids"`     // 标签ID列表，可选
+	ArticleIDs []uint      `json:"article_ids" binding:"required,min=1"`
+	Cover      *string     `json:"cover"`       // 封面，可选
+	CategoryID *uint       `json:"category_id"` // 分类ID，可选
+	ChapterID  *uint       `json:"chapter_id"`  // 章节ID，可选
+	TagIDs     []uint      `json:"tag_ids"`     // 标签ID列表，可选
+	CreatedAt  *time.Time  `json:"created_at"`  // 创建时间，可选
 }
 
 // BatchDeleteRequest 批量删除请求
