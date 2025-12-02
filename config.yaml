@@ -16,10 +16,10 @@ jwt:
 
 oss:
   endpoint: oss-cn-hangzhou.aliyuncs.com
-  access_key_id: LTAI5tDt2gy9Bnf48xbmWn8Z
-  access_key_secret: d41htpgBqb6BgSxrigvdfocDYGMBcD
+  access_key_id: xxxx
+  access_key_secret: xxxxx
   bucket_name: dycloud-leaf
-  base_url: https://dycloud-leaf.oss-cn-hangzhou.aliyuncs.com
+  base_url: https://xxxxxx.oss-cn-hangzhou.aliyuncs.com
 
 redis:
   host: 127.0.0.1

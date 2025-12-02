@@ -151,6 +151,7 @@ cd leaf-api
 **2. 安装依赖**
 
 ```bash
+export GOPROXY=https://goproxy.cn,direct
 go mod download
 ```
 
