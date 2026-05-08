@@ -2,7 +2,10 @@ package biz
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
@@ -41,6 +44,10 @@ type ArticleUseCase interface {
 	BatchDelete(articleIDs []uint) error
 	// GetAdjacentArticles 获取上一篇和下一篇文章
 	GetAdjacentArticles(id uint) (map[string]*dto.ArticleListItem, error)
+	// GetRelatedArticles 获取相关文章
+	GetRelatedArticles(id uint, limit int) ([]dto.ArticleListItem, error)
+	// ListPublished 获取已发布文章
+	ListPublished(limit int) ([]dto.ArticleListItem, error)
 	// Export 导出文章为 ZIP 文件
 	Export(articleIDs []uint) ([]byte, error)
 }
@@ -392,17 +399,125 @@ func markdownToHTML(md string) string {
 
 // Search 搜索文章
 func (uc *articleUseCase) Search(keyword string, page, limit int, sort string) (*dto.PageResponse, error) {
-	// 使用文章列表请求结构，设置搜索关键词
-	req := &dto.ArticleListRequest{
-		PageRequest: dto.PageRequest{
-			Page:  page,
-			Limit: limit,
-		},
-		Keyword: keyword,
-		Status:  "1", // 只搜索已发布的文章
-		Sort:    sort,
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return uc.List(&dto.ArticleListRequest{
+			PageRequest: dto.PageRequest{
+				Page:  page,
+				Limit: limit,
+			},
+			Status: "1",
+			Sort:   sort,
+		})
 	}
-	return uc.List(req)
+
+	articles, total, err := uc.data.ArticleRepo.List(page, limit, 0, 0, 0, "1", keyword, sort)
+	if err != nil {
+		return nil, errors.New("搜索文章失败")
+	}
+
+	items := make([]dto.ArticleListItem, 0, len(articles))
+	for _, article := range articles {
+		item := uc.convertToArticleListItem(article)
+		uc.applySearchMetadata(&item, article, keyword)
+		items = append(items, item)
+	}
+
+	return &dto.PageResponse{
+		Total: total,
+		Page:  page,
+		Limit: limit,
+		Data:  items,
+	}, nil
+}
+
+func (uc *articleUseCase) applySearchMetadata(item *dto.ArticleListItem, article *po.Article, keyword string) {
+	fields := []struct {
+		label string
+		text  string
+	}{
+		{label: "标题", text: article.Title},
+		{label: "摘要", text: article.Summary},
+		{label: "正文", text: article.ContentMarkdown},
+		{label: "正文", text: article.ContentHTML},
+	}
+
+	for _, field := range fields {
+		plainText := cleanSearchText(field.text)
+		if containsIgnoreCase(plainText, keyword) {
+			item.MatchedField = field.label
+			item.SearchSnippet = buildSearchSnippet(plainText, keyword, 54)
+			return
+		}
+	}
+}
+
+var (
+	htmlTagPattern       = regexp.MustCompile(`<[^>]+>`)
+	markdownImagePattern = regexp.MustCompile(`!\[[^\]]*\]\([^)]+\)`)
+	markdownLinkPattern  = regexp.MustCompile(`\[[^\]]+\]\([^)]+\)`)
+	markdownSyntaxChars  = regexp.MustCompile("[#>*_`~\\[\\]()]")
+	spacePattern         = regexp.MustCompile(`\s+`)
+)
+
+func cleanSearchText(value string) string {
+	text := htmlTagPattern.ReplaceAllString(value, " ")
+	text = markdownImagePattern.ReplaceAllString(text, " ")
+	text = markdownLinkPattern.ReplaceAllString(text, " ")
+	text = markdownSyntaxChars.ReplaceAllString(text, " ")
+	text = strings.ReplaceAll(text, "&nbsp;", " ")
+	text = strings.ReplaceAll(text, "&lt;", "<")
+	text = strings.ReplaceAll(text, "&gt;", ">")
+	text = strings.ReplaceAll(text, "&amp;", "&")
+	return strings.TrimSpace(spacePattern.ReplaceAllString(text, " "))
+}
+
+func containsIgnoreCase(text, keyword string) bool {
+	return strings.Contains(strings.ToLower(text), strings.ToLower(keyword))
+}
+
+func buildSearchSnippet(text, keyword string, radius int) string {
+	if text == "" {
+		return ""
+	}
+
+	lowerText := strings.ToLower(text)
+	lowerKeyword := strings.ToLower(keyword)
+	byteIndex := strings.Index(lowerText, lowerKeyword)
+	if byteIndex < 0 {
+		return truncateRunes(text, radius*2)
+	}
+
+	runes := []rune(text)
+	startRune := utf8.RuneCountInString(text[:byteIndex])
+	keywordLen := utf8.RuneCountInString(keyword)
+
+	start := startRune - radius
+	if start < 0 {
+		start = 0
+	}
+
+	end := startRune + keywordLen + radius
+	if end > len(runes) {
+		end = len(runes)
+	}
+
+	snippet := string(runes[start:end])
+	if start > 0 {
+		snippet = "..." + snippet
+	}
+	if end < len(runes) {
+		snippet += "..."
+	}
+	return snippet
+}
+
+func truncateRunes(text string, limit int) string {
+	runes := []rune(text)
+	if len(runes) <= limit {
+		return text
+	}
+	return string(runes[:limit]) + "..."
 }
 
 // Archive 获取归档文章（返回所有已发布的文章，前端按月份分组）
@@ -523,6 +638,36 @@ func (uc *articleUseCase) GetAdjacentArticles(id uint) (map[string]*dto.ArticleL
 	return result, nil
 }
 
+// GetRelatedArticles 获取相关文章
+func (uc *articleUseCase) GetRelatedArticles(id uint, limit int) ([]dto.ArticleListItem, error) {
+	articles, err := uc.data.ArticleRepo.GetRelatedArticles(id, limit)
+	if err != nil {
+		return nil, errors.New("获取相关文章失败: " + err.Error())
+	}
+
+	items := make([]dto.ArticleListItem, 0, len(articles))
+	for _, article := range articles {
+		items = append(items, uc.convertToArticleListItem(article))
+	}
+
+	return items, nil
+}
+
+// ListPublished 获取已发布文章
+func (uc *articleUseCase) ListPublished(limit int) ([]dto.ArticleListItem, error) {
+	articles, err := uc.data.ArticleRepo.ListPublished(limit)
+	if err != nil {
+		return nil, errors.New("获取已发布文章失败: " + err.Error())
+	}
+
+	items := make([]dto.ArticleListItem, 0, len(articles))
+	for _, article := range articles {
+		items = append(items, uc.convertToArticleListItem(article))
+	}
+
+	return items, nil
+}
+
 // Export 导出文章为 ZIP 文件
 func (uc *articleUseCase) Export(articleIDs []uint) ([]byte, error) {
 	var articles []*po.Article
@@ -549,4 +694,3 @@ func (uc *articleUseCase) Export(articleIDs []uint) ([]byte, error) {
 	exporter := mdutils.NewArticleExporter()
 	return exporter.ExportToZip(articles)
 }
-

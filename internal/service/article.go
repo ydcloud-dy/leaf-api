@@ -1,11 +1,14 @@
 package service
 
 import (
+	"encoding/xml"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/leaf-api/internal/biz"
@@ -529,6 +532,208 @@ func (s *ArticleService) GetAdjacentArticles(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// GetRelatedArticles 获取相关文章
+// @Summary 获取相关文章
+// @Description 根据标签、分类和热度获取相关文章
+// @Tags 博客前台
+// @Accept json
+// @Produce json
+// @Param id path int true "文章ID"
+// @Param limit query int false "返回数量" default(6)
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/articles/{id}/related [get]
+func (s *ArticleService) GetRelatedArticles(c *gin.Context) {
+	var req dto.IDRequest
+	if err := c.ShouldBindUri(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "6"))
+	if limit <= 0 || limit > 12 {
+		limit = 6
+	}
+
+	result, err := s.articleUseCase.GetRelatedArticles(req.ID, limit)
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, result)
+}
+
+type sitemapURLSet struct {
+	XMLName xml.Name     `xml:"urlset"`
+	Xmlns   string       `xml:"xmlns,attr"`
+	URLs    []sitemapURL `xml:"url"`
+}
+
+type sitemapURL struct {
+	Loc        string `xml:"loc"`
+	LastMod    string `xml:"lastmod,omitempty"`
+	ChangeFreq string `xml:"changefreq,omitempty"`
+	Priority   string `xml:"priority,omitempty"`
+}
+
+// Sitemap 生成站点地图
+// @Summary 生成 Sitemap
+// @Description 输出已发布文章的 sitemap.xml
+// @Tags 博客前台
+// @Produce xml
+// @Success 200 "XML"
+// @Router /sitemap.xml [get]
+func (s *ArticleService) Sitemap(c *gin.Context) {
+	articles, err := s.articleUseCase.ListPublished(5000)
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	baseURL := getPublicBaseURL(c)
+	urls := []sitemapURL{
+		{
+			Loc:        baseURL + "/",
+			ChangeFreq: "daily",
+			Priority:   "1.0",
+		},
+		{
+			Loc:        baseURL + "/articles",
+			ChangeFreq: "daily",
+			Priority:   "0.9",
+		},
+		{
+			Loc:        baseURL + "/archive",
+			ChangeFreq: "weekly",
+			Priority:   "0.6",
+		},
+		{
+			Loc:        baseURL + "/notes",
+			ChangeFreq: "weekly",
+			Priority:   "0.6",
+		},
+	}
+
+	for _, article := range articles {
+		urls = append(urls, sitemapURL{
+			Loc:        fmt.Sprintf("%s/articles/%d", baseURL, article.ID),
+			LastMod:    article.CreatedAt.Format("2006-01-02"),
+			ChangeFreq: "monthly",
+			Priority:   "0.8",
+		})
+	}
+
+	payload := sitemapURLSet{
+		Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
+		URLs:  urls,
+	}
+
+	output, err := xml.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		response.ServerError(c, "生成 Sitemap 失败")
+		return
+	}
+
+	c.Data(http.StatusOK, "application/xml; charset=utf-8", append([]byte(xml.Header), output...))
+}
+
+type rssFeed struct {
+	XMLName xml.Name   `xml:"rss"`
+	Version string     `xml:"version,attr"`
+	Channel rssChannel `xml:"channel"`
+}
+
+type rssChannel struct {
+	Title       string    `xml:"title"`
+	Link        string    `xml:"link"`
+	Description string    `xml:"description"`
+	Language    string    `xml:"language"`
+	LastBuild   string    `xml:"lastBuildDate,omitempty"`
+	Items       []rssItem `xml:"item"`
+}
+
+type rssItem struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	GUID        string `xml:"guid"`
+	Description string `xml:"description,cdata"`
+	PubDate     string `xml:"pubDate"`
+	Category    string `xml:"category,omitempty"`
+}
+
+// RSS 生成 RSS 订阅
+// @Summary 生成 RSS
+// @Description 输出最新文章 feed.xml
+// @Tags 博客前台
+// @Produce xml
+// @Success 200 "XML"
+// @Router /feed.xml [get]
+func (s *ArticleService) RSS(c *gin.Context) {
+	articles, err := s.articleUseCase.ListPublished(50)
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	baseURL := getPublicBaseURL(c)
+	items := make([]rssItem, 0, len(articles))
+	for _, article := range articles {
+		link := fmt.Sprintf("%s/articles/%d", baseURL, article.ID)
+		category := ""
+		if article.Category != nil {
+			category = article.Category.Name
+		}
+		items = append(items, rssItem{
+			Title:       article.Title,
+			Link:        link,
+			GUID:        link,
+			Description: article.Summary,
+			PubDate:     article.CreatedAt.Format(time.RFC1123Z),
+			Category:    category,
+		})
+	}
+
+	feed := rssFeed{
+		Version: "2.0",
+		Channel: rssChannel{
+			Title:       "个人博客",
+			Link:        baseURL + "/",
+			Description: "记录技术实践与生活片段",
+			Language:    "zh-CN",
+			LastBuild:   time.Now().Format(time.RFC1123Z),
+			Items:       items,
+		},
+	}
+
+	output, err := xml.MarshalIndent(feed, "", "  ")
+	if err != nil {
+		response.ServerError(c, "生成 RSS 失败")
+		return
+	}
+
+	c.Data(http.StatusOK, "application/rss+xml; charset=utf-8", append([]byte(xml.Header), output...))
+}
+
+func getPublicBaseURL(c *gin.Context) string {
+	proto := c.GetHeader("X-Forwarded-Proto")
+	if proto == "" {
+		if c.Request.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+
+	host := c.GetHeader("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request.Host
+	}
+
+	return strings.TrimRight(proto+"://"+host, "/")
+}
+
 // Export 批量导出文章为 ZIP
 // @Summary 批量导出文章
 // @Description 将指定或所有文章导出为 ZIP 文件，包含 Markdown 文件和图片
@@ -560,4 +765,3 @@ func (s *ArticleService) Export(c *gin.Context) {
 	c.Header("Content-Type", "application/zip")
 	c.Data(200, "application/zip", zipData)
 }
-

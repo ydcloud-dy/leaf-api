@@ -24,6 +24,11 @@ func registerRoutes(
 	visitService *service.VisitService,
 	analyticsService *service.AnalyticsService,
 ) {
+	// 公开 XML 输出。生产环境如果前端托管在根路径，需要在 Nginx 将这些路径转发到 API。
+	r.GET("/sitemap.xml", articleService.Sitemap)
+	r.GET("/feed.xml", articleService.RSS)
+	r.GET("/rss.xml", articleService.RSS)
+
 	// 管理后台认证路由（不需要 JWT 验证）
 	auth := r.Group("/auth")
 	{
@@ -47,20 +52,26 @@ func registerRoutes(
 	blog := r.Group("/blog")
 	{
 		// 文章相关
-		blog.GET("/articles", articleService.List)           // 文章列表
-		blog.GET("/articles/search", articleService.Search)  // 搜索文章
-		blog.GET("/articles/archive", articleService.Archive) // 归档文章
+		blog.GET("/articles", articleService.List)                             // 文章列表
+		blog.GET("/articles/search", articleService.Search)                    // 搜索文章
+		blog.GET("/articles/archive", articleService.Archive)                  // 归档文章
 		blog.GET("/articles/:id/adjacent", articleService.GetAdjacentArticles) // 获取上一篇和下一篇文章
+		blog.GET("/articles/:id/related", articleService.GetRelatedArticles)   // 获取相关文章
 
 		// 分类和标签
 		blog.GET("/categories", categoryService.List) // 分类列表
 		blog.GET("/tags", tagService.List)            // 标签列表
 
+		// 订阅和站点地图（兼容 /api/blog/* 转发场景）
+		blog.GET("/sitemap.xml", articleService.Sitemap)
+		blog.GET("/feed.xml", articleService.RSS)
+		blog.GET("/rss.xml", articleService.RSS)
+
 		// 章节
 		blog.GET("/chapters/:tag", chapterService.GetChaptersByTag) // 获取标签下的章节及文章
 
 		// 统计
-		blog.GET("/stats", statsService.GetStats) // 站点统计
+		blog.GET("/stats", statsService.GetStats)                    // 站点统计
 		blog.GET("/stats/hot-articles", statsService.GetHotArticles) // 热门文章
 
 		// 博主信息（关于页面使用）

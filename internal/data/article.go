@@ -1,6 +1,7 @@
 package data
 
 import (
+	"sort"
 	"time"
 
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
@@ -51,6 +52,10 @@ type ArticleRepo interface {
 	BatchDelete(articleIDs []uint) error
 	// GetAdjacentArticles 获取上一篇和下一篇文章（基于章节排序）
 	GetAdjacentArticles(id uint) (*po.Article, *po.Article, error)
+	// GetRelatedArticles 获取相关文章
+	GetRelatedArticles(id uint, limit int) ([]*po.Article, error)
+	// ListPublished 获取已发布文章列表
+	ListPublished(limit int) ([]*po.Article, error)
 }
 
 // articleRepo 文章仓储实现
@@ -154,7 +159,14 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID, chapterID uint, s
 
 	// 关键词搜索
 	if keyword != "" {
-		query = query.Where("title LIKE ? OR summary LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		likeKeyword := "%" + keyword + "%"
+		query = query.Where(
+			"articles.title LIKE ? OR articles.summary LIKE ? OR articles.content_markdown LIKE ? OR articles.content_html LIKE ?",
+			likeKeyword,
+			likeKeyword,
+			likeKeyword,
+			likeKeyword,
+		)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -277,6 +289,110 @@ func (r *articleRepo) BatchAssociateTags(articleIDs []uint, tagIDs []uint) error
 // BatchDelete 批量删除
 func (r *articleRepo) BatchDelete(articleIDs []uint) error {
 	return r.db.Select("Tags").Delete(&po.Article{}, articleIDs).Error
+}
+
+// GetRelatedArticles 获取相关文章
+func (r *articleRepo) GetRelatedArticles(id uint, limit int) ([]*po.Article, error) {
+	var current po.Article
+	if err := r.db.Preload("Tags").Where("id = ? AND status = ?", id, 1).First(&current).Error; err != nil {
+		return nil, err
+	}
+
+	tagIDs := make([]uint, 0, len(current.Tags))
+	for _, tag := range current.Tags {
+		tagIDs = append(tagIDs, tag.ID)
+	}
+
+	query := r.db.Model(&po.Article{}).
+		Preload("Author").
+		Preload("Category").
+		Preload("Tags").
+		Where("id <> ? AND status = ?", id, 1)
+
+	if limit <= 0 {
+		limit = 6
+	}
+
+	candidateLimit := limit * 6
+	if candidateLimit < 24 {
+		candidateLimit = 24
+	}
+
+	var articles []*po.Article
+	if len(tagIDs) > 0 {
+		query = query.Where(
+			"category_id = ? OR id IN (?)",
+			current.CategoryID,
+			r.db.Table("article_tags").Select("article_id").Where("tag_id IN ?", tagIDs),
+		)
+	} else {
+		query = query.Where("category_id = ?", current.CategoryID)
+	}
+
+	err := query.
+		Order("view_count DESC").
+		Order("created_at DESC").
+		Limit(candidateLimit).
+		Find(&articles).Error
+	if err != nil {
+		return nil, err
+	}
+
+	currentTagSet := make(map[uint]struct{}, len(tagIDs))
+	for _, tagID := range tagIDs {
+		currentTagSet[tagID] = struct{}{}
+	}
+
+	score := func(article *po.Article) int {
+		total := 0
+		if article.CategoryID == current.CategoryID {
+			total += 2
+		}
+		for _, tag := range article.Tags {
+			if _, ok := currentTagSet[tag.ID]; ok {
+				total += 3
+			}
+		}
+		return total
+	}
+
+	sort.SliceStable(articles, func(i, j int) bool {
+		leftScore := score(articles[i])
+		rightScore := score(articles[j])
+		if leftScore != rightScore {
+			return leftScore > rightScore
+		}
+		if articles[i].ViewCount != articles[j].ViewCount {
+			return articles[i].ViewCount > articles[j].ViewCount
+		}
+		return articles[i].CreatedAt.After(articles[j].CreatedAt)
+	})
+
+	if len(articles) > limit {
+		articles = articles[:limit]
+	}
+
+	return articles, nil
+}
+
+// ListPublished 获取已发布文章列表
+func (r *articleRepo) ListPublished(limit int) ([]*po.Article, error) {
+	query := r.db.Preload("Author").
+		Preload("Category").
+		Preload("Tags").
+		Where("status = ?", 1).
+		Order("created_at DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	var articles []*po.Article
+	if err := query.Find(&articles).Error; err != nil {
+		return nil, err
+	}
+
+	return articles, nil
 }
 
 // GetAdjacentArticles 获取上一篇和下一篇文章（基于章节排序）
