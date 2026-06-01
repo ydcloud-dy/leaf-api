@@ -115,6 +115,10 @@ func (uc *articleUseCase) Create(req *dto.CreateArticleRequest, authorID uint) (
 		}
 	}
 
+	if article.Status == 1 {
+		uc.notifyPublishedArticle(article.ID)
+	}
+
 	// 重新查询文章（包含关联数据）
 	return uc.GetByID(article.ID)
 }
@@ -126,6 +130,7 @@ func (uc *articleUseCase) Update(id uint, req *dto.UpdateArticleRequest) (*dto.A
 	if err != nil {
 		return nil, errors.New("文章不存在")
 	}
+	previousStatus := article.Status
 
 	// 更新字段
 	if req.Title != "" {
@@ -166,8 +171,8 @@ func (uc *articleUseCase) Update(id uint, req *dto.UpdateArticleRequest) (*dto.A
 	}
 	// 设置章节ID（可为空）
 	article.ChapterID = req.ChapterID
-	if req.Status >= 0 {
-		article.Status = req.Status
+	if req.Status != nil {
+		article.Status = *req.Status
 	}
 
 	// 如果指定了创建时间，则更新
@@ -184,6 +189,10 @@ func (uc *articleUseCase) Update(id uint, req *dto.UpdateArticleRequest) (*dto.A
 		if err := uc.data.ArticleRepo.AssociateTags(article.ID, req.TagIDs); err != nil {
 			return nil, errors.New("更新标签失败")
 		}
+	}
+
+	if previousStatus != 1 && article.Status == 1 {
+		uc.notifyPublishedArticle(article.ID)
 	}
 
 	// 重新查询文章
@@ -264,12 +273,17 @@ func (uc *articleUseCase) List(req *dto.ArticleListRequest) (*dto.PageResponse, 
 // UpdateStatus 更新文章状态
 func (uc *articleUseCase) UpdateStatus(id uint, status int) error {
 	// 检查文章是否存在
-	if _, err := uc.data.ArticleRepo.FindByID(id); err != nil {
+	article, err := uc.data.ArticleRepo.FindByID(id)
+	if err != nil {
 		return errors.New("文章不存在")
 	}
 
 	if err := uc.data.ArticleRepo.UpdateStatus(id, status); err != nil {
 		return errors.New("更新状态失败")
+	}
+
+	if article.Status != 1 && status == 1 {
+		uc.notifyPublishedArticle(id)
 	}
 
 	return nil
@@ -563,6 +577,15 @@ func (uc *articleUseCase) BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) e
 		return errors.New("文章ID列表不能为空")
 	}
 
+	originalArticles, err := uc.data.ArticleRepo.FindByIDs(req.ArticleIDs)
+	if err != nil {
+		return errors.New("获取文章信息失败: " + err.Error())
+	}
+	originalStatus := make(map[uint]int, len(originalArticles))
+	for _, article := range originalArticles {
+		originalStatus[article.ID] = article.Status
+	}
+
 	// 构建更新字段映射
 	updates := make(map[string]interface{})
 
@@ -586,6 +609,10 @@ func (uc *articleUseCase) BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) e
 		updates["created_at"] = *req.CreatedAt
 	}
 
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+
 	// 更新基础字段
 	if len(updates) > 0 {
 		if err := uc.data.ArticleRepo.BatchUpdateFields(req.ArticleIDs, updates); err != nil {
@@ -598,6 +625,16 @@ func (uc *articleUseCase) BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) e
 		if err := uc.data.ArticleRepo.BatchAssociateTags(req.ArticleIDs, req.TagIDs); err != nil {
 			return errors.New("批量更新标签失败: " + err.Error())
 		}
+	}
+
+	if req.Status != nil && *req.Status == 1 {
+		publishedIDs := make([]uint, 0, len(req.ArticleIDs))
+		for _, articleID := range req.ArticleIDs {
+			if originalStatus[articleID] != 1 {
+				publishedIDs = append(publishedIDs, articleID)
+			}
+		}
+		uc.notifyPublishedArticlesByIDs(publishedIDs)
 	}
 
 	return nil

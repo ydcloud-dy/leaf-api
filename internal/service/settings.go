@@ -1,6 +1,9 @@
 package service
 
 import (
+	"strings"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/leaf-api/internal/data"
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
@@ -46,6 +49,24 @@ func (s *SettingsService) Get(c *gin.Context) {
 	response.Success(c, settingsMap)
 }
 
+// GetPublic 获取公开设置
+func (s *SettingsService) GetPublic(c *gin.Context) {
+	settings, err := s.data.SettingRepo.List()
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	settingsMap := make(map[string]string)
+	for _, setting := range settings {
+		if isPublicSettingKey(setting.Key) {
+			settingsMap[setting.Key] = setting.Value
+		}
+	}
+
+	response.Success(c, settingsMap)
+}
+
 // Update 更新设置
 // @Summary 更新系统设置
 // @Description 批量更新系统配置项
@@ -66,22 +87,14 @@ func (s *SettingsService) Update(c *gin.Context) {
 		return
 	}
 
-	// 批量更新设置
-	var settings []*po.Setting
+	settings := make([]*po.Setting, 0, len(req))
+	now := time.Now()
 	for key, value := range req {
-		// 先查询是否存在
-		existing, err := s.data.SettingRepo.FindByKey(key)
-		if err != nil {
-			// 不存在则创建
-			settings = append(settings, &po.Setting{
-				Key:   key,
-				Value: value,
-			})
-		} else {
-			// 存在则更新
-			existing.Value = value
-			settings = append(settings, existing)
-		}
+		settings = append(settings, &po.Setting{
+			Key:       key,
+			Value:     value,
+			UpdatedAt: now,
+		})
 	}
 
 	if err := s.data.SettingRepo.BatchUpdate(settings); err != nil {
@@ -90,4 +103,18 @@ func (s *SettingsService) Update(c *gin.Context) {
 	}
 
 	response.Success(c, nil)
+}
+
+func isPublicSettingKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	if strings.HasPrefix(key, "mail_") || strings.HasPrefix(key, "smtp_") {
+		return false
+	}
+	if strings.Contains(key, "password") || strings.Contains(key, "secret") || strings.Contains(key, "token") {
+		return false
+	}
+	return true
 }

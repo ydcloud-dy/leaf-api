@@ -21,6 +21,8 @@ type UserRepo interface {
 	FindByEmail(email string) (*po.User, error)
 	// List 查询用户列表
 	List(page, limit int, keyword, status string) ([]*po.User, int64, error)
+	// ListActiveRegisteredWithEmail 查询可接收通知的已注册用户
+	ListActiveRegisteredWithEmail() ([]*po.User, error)
 }
 
 // userRepo 用户仓储实现
@@ -106,4 +108,17 @@ func (r *userRepo) List(page, limit int, keyword, status string) ([]*po.User, in
 	}
 
 	return users, total, nil
+}
+
+// ListActiveRegisteredWithEmail 查询可接收通知的已启用用户
+func (r *userRepo) ListActiveRegisteredWithEmail() ([]*po.User, error) {
+	var users []*po.User
+	err := r.db.
+		Where("status = ? AND email <> ? AND email <> ?", 1, "", "admin@example.com").
+		Order("created_at DESC").
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }

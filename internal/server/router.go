@@ -78,7 +78,7 @@ func registerRoutes(
 		blog.GET("/blogger", blogService.GetBloggerInfo) // 获取博主信息
 
 		// 站点设置（公开访问，用于前端显示备案信息等）
-		blog.GET("/settings", settingsService.Get) // 获取站点设置
+		blog.GET("/settings", settingsService.GetPublic) // 获取站点设置
 	}
 
 	// 博客可选认证路由（支持登录和未登录状态）

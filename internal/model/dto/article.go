@@ -26,7 +26,7 @@ type UpdateArticleRequest struct {
 	CategoryID      uint       `json:"category_id"`
 	ChapterID       *uint      `json:"chapter_id"` // 章节ID，可为空
 	TagIDs          []uint     `json:"tag_ids"`
-	Status          int        `json:"status" binding:"omitempty,oneof=0 1 2"`
+	Status          *int       `json:"status" binding:"omitempty,oneof=0 1 2"`
 	CreatedAt       *time.Time `json:"created_at"` // 创建时间，可选，允许手动修改创建时间
 }
 
@@ -47,6 +47,7 @@ type BatchUpdateFieldsRequest struct {
 	Cover      *string    `json:"cover"`       // 封面，可选
 	CategoryID *uint      `json:"category_id"` // 分类ID，可选
 	ChapterID  *uint      `json:"chapter_id"`  // 章节ID，可选
+	Status     *int       `json:"status"`      // 状态，可选
 	TagIDs     []uint     `json:"tag_ids"`     // 标签ID列表，可选
 	CreatedAt  *time.Time `json:"created_at"`  // 创建时间，可选
 }

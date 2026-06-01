@@ -1,8 +1,11 @@
 package data
 
 import (
+	"time"
+
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // LikeRepo 点赞仓储接口
@@ -389,7 +392,7 @@ func (r *settingRepo) Delete(key string) error {
 // FindByKey 根据 Key 查询设置
 func (r *settingRepo) FindByKey(key string) (*po.Setting, error) {
 	var setting po.Setting
-	err := r.db.Where("key = ?", key).First(&setting).Error
+	err := r.db.Where("`key` = ?", key).First(&setting).Error
 	if err != nil {
 		return nil, err
 	}
@@ -408,21 +411,14 @@ func (r *settingRepo) List() ([]*po.Setting, error) {
 
 // BatchUpdate 批量更新设置
 func (r *settingRepo) BatchUpdate(settings []*po.Setting) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		for _, setting := range settings {
-			// 如果ID为0，说明是新记录，需要先检查是否存在
-			if setting.ID == 0 {
-				// 尝试查找已存在的记录
-				var existing po.Setting
-				if err := tx.Where("key = ?", setting.Key).First(&existing).Error; err == nil {
-					// 已存在，更新ID后再保存
-					setting.ID = existing.ID
-				}
-			}
-			if err := tx.Save(setting).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	now := time.Now()
+	for _, setting := range settings {
+		setting.ID = 0
+		setting.UpdatedAt = now
+	}
+
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
+	}).Create(&settings).Error
 }
