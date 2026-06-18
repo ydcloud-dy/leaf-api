@@ -238,6 +238,55 @@ func (s *ArticleService) UpdateStatus(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// UpdatePin 更新文章置顶状态
+func (s *ArticleService) UpdatePin(c *gin.Context) {
+	var idReq dto.IDRequest
+	if err := c.ShouldBindUri(&idReq); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	var req dto.UpdateArticlePinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.articleUseCase.UpdatePin(idReq.ID, req.IsPinned); err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// ListPinned 获取置顶文章列表
+func (s *ArticleService) ListPinned(c *gin.Context) {
+	items, err := s.articleUseCase.ListPinned()
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, items)
+}
+
+// ReorderPinned 更新置顶文章排序
+func (s *ArticleService) ReorderPinned(c *gin.Context) {
+	var req dto.ReorderPinnedArticlesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.articleUseCase.ReorderPinned(req.ArticleIDs); err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // Search 搜索文章
 // @Summary 搜索文章
 // @Description 根据关键词搜索文章

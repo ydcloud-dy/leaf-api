@@ -26,6 +26,14 @@ type ArticleRepo interface {
 	List(page, limit int, categoryID, tagID, chapterID uint, status, keyword, sort string) ([]*po.Article, int64, error)
 	// UpdateStatus 更新文章状态
 	UpdateStatus(id uint, status int) error
+	// CountPinned 统计当前置顶文章数量
+	CountPinned() (int64, error)
+	// ListPinned 查询已置顶文章
+	ListPinned() ([]*po.Article, error)
+	// UpdatePinned 更新文章置顶状态
+	UpdatePinned(id uint, isPinned bool, pinSort int, pinnedAt *time.Time) error
+	// ReorderPinned 更新置顶文章排序
+	ReorderPinned(articleIDs []uint) error
 	// IncrementViewCount 增加浏览量
 	IncrementViewCount(id uint) error
 	// IncrementLikeCount 增加点赞数
@@ -75,6 +83,15 @@ func (r *articleRepo) Create(article *po.Article) error {
 
 // Update 更新文章
 func (r *articleRepo) Update(article *po.Article) error {
+	isPinned := article.IsPinned
+	pinSort := article.PinSort
+	pinnedAt := article.PinnedAt
+	if article.Status != 1 {
+		isPinned = false
+		pinSort = 0
+		pinnedAt = nil
+	}
+
 	// 使用 Updates 并设置 UpdatedAt，允许更新 CreatedAt
 	return r.db.Model(article).Updates(map[string]interface{}{
 		"title":            article.Title,
@@ -85,6 +102,9 @@ func (r *articleRepo) Update(article *po.Article) error {
 		"category_id":      article.CategoryID,
 		"chapter_id":       article.ChapterID,
 		"status":           article.Status,
+		"is_pinned":        isPinned,
+		"pin_sort":         pinSort,
+		"pinned_at":        pinnedAt,
 		"created_at":       article.CreatedAt, // 明确允许更新创建时间
 		"updated_at":       time.Now(),
 	}).Error
@@ -173,6 +193,8 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID, chapterID uint, s
 		return nil, 0, err
 	}
 
+	pinnedOrderPrefix := "articles.is_pinned DESC, CASE WHEN articles.is_pinned THEN articles.pin_sort ELSE 0 END ASC, CASE WHEN articles.is_pinned THEN articles.pinned_at ELSE NULL END DESC, "
+
 	// 根据排序参数动态排序
 	orderBy := "created_at DESC" // 默认按创建时间降序
 	switch sort {
@@ -182,6 +204,9 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID, chapterID uint, s
 		orderBy = "like_count DESC"
 	case "latest":
 		orderBy = "created_at DESC"
+	}
+	if keyword == "" {
+		orderBy = pinnedOrderPrefix + orderBy
 	}
 
 	if err := query.Offset(offset).Limit(limit).Order(orderBy).Find(&articles).Error; err != nil {
@@ -193,7 +218,55 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID, chapterID uint, s
 
 // UpdateStatus 更新文章状态
 func (r *articleRepo) UpdateStatus(id uint, status int) error {
-	return r.db.Model(&po.Article{}).Where("id = ?", id).Update("status", status).Error
+	updates := map[string]interface{}{"status": status}
+	if status != 1 {
+		updates["is_pinned"] = false
+		updates["pin_sort"] = 0
+		updates["pinned_at"] = nil
+	}
+	return r.db.Model(&po.Article{}).Where("id = ?", id).Updates(updates).Error
+}
+
+// CountPinned 统计当前置顶文章数量
+func (r *articleRepo) CountPinned() (int64, error) {
+	var count int64
+	err := r.db.Model(&po.Article{}).
+		Where("is_pinned = ? AND status = ?", true, 1).
+		Count(&count).Error
+	return count, err
+}
+
+// ListPinned 查询已置顶文章
+func (r *articleRepo) ListPinned() ([]*po.Article, error) {
+	var articles []*po.Article
+	err := r.db.Preload("Author").Preload("Category").Preload("Tags").
+		Where("is_pinned = ? AND status = ?", true, 1).
+		Order("pin_sort ASC, pinned_at DESC, created_at DESC").
+		Find(&articles).Error
+	return articles, err
+}
+
+// UpdatePinned 更新文章置顶状态
+func (r *articleRepo) UpdatePinned(id uint, isPinned bool, pinSort int, pinnedAt *time.Time) error {
+	return r.db.Model(&po.Article{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"is_pinned": isPinned,
+		"pin_sort":  pinSort,
+		"pinned_at": pinnedAt,
+	}).Error
+}
+
+// ReorderPinned 更新置顶文章排序
+func (r *articleRepo) ReorderPinned(articleIDs []uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for index, articleID := range articleIDs {
+			if err := tx.Model(&po.Article{}).
+				Where("id = ? AND is_pinned = ? AND status = ?", articleID, true, 1).
+				Update("pin_sort", index+1).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // IncrementViewCount 增加浏览量
@@ -262,6 +335,11 @@ func (r *articleRepo) BatchUpdateCover(articleIDs []uint, cover string) error {
 
 // BatchUpdateFields 批量更新字段
 func (r *articleRepo) BatchUpdateFields(articleIDs []uint, updates map[string]interface{}) error {
+	if statusValue, ok := updates["status"]; ok && statusValue != 1 {
+		updates["is_pinned"] = false
+		updates["pin_sort"] = 0
+		updates["pinned_at"] = nil
+	}
 	return r.db.Model(&po.Article{}).
 		Where("id IN ?", articleIDs).
 		Updates(updates).Error

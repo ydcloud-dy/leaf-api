@@ -147,11 +147,14 @@ func registerRoutes(
 			articles.POST("", articleService.Create)
 			articles.POST("/import", articleService.ImportMarkdown)
 			articles.POST("/export", articleService.Export)
+			articles.GET("/pinned", articleService.ListPinned)
+			articles.POST("/pinned/reorder", articleService.ReorderPinned)
 			articles.POST("/batch-update-cover", articleService.BatchUpdateCover)
 			articles.POST("/batch-update-fields", articleService.BatchUpdateFields)
 			articles.POST("/batch-delete", articleService.BatchDelete)
 			articles.PUT("/:id", articleService.Update)
 			articles.PATCH("/:id/status", articleService.UpdateStatus)
+			articles.PATCH("/:id/pin", articleService.UpdatePin)
 			articles.DELETE("/:id", articleService.Delete)
 		}
 

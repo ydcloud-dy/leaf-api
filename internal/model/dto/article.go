@@ -35,6 +35,16 @@ type UpdateArticleStatusRequest struct {
 	Status int `json:"status" binding:"required,oneof=0 1 2"`
 }
 
+// UpdateArticlePinRequest 更新文章置顶状态请求
+type UpdateArticlePinRequest struct {
+	IsPinned bool `json:"is_pinned"`
+}
+
+// ReorderPinnedArticlesRequest 置顶文章排序请求
+type ReorderPinnedArticlesRequest struct {
+	ArticleIDs []uint `json:"article_ids" binding:"required,min=1"`
+}
+
 // BatchUpdateCoverRequest 批量更新封面请求
 type BatchUpdateCoverRequest struct {
 	ArticleIDs []uint `json:"article_ids" binding:"required,min=1"`
@@ -80,6 +90,9 @@ type ArticleResponse struct {
 	CategoryID      uint          `json:"category_id"`
 	ChapterID       *uint         `json:"chapter_id"`
 	Status          int           `json:"status"`
+	IsPinned        bool          `json:"is_pinned"`
+	PinSort         int           `json:"pin_sort"`
+	PinnedAt        *time.Time    `json:"pinned_at"`
 	ViewCount       int           `json:"view_count"`
 	LikeCount       int           `json:"like_count"`
 	FavoriteCount   int           `json:"favorite_count"`
@@ -98,6 +111,9 @@ type ArticleListItem struct {
 	Summary       string        `json:"summary"`
 	Cover         string        `json:"cover"`
 	Status        int           `json:"status"`
+	IsPinned      bool          `json:"is_pinned"`
+	PinSort       int           `json:"pin_sort"`
+	PinnedAt      *time.Time    `json:"pinned_at"`
 	ViewCount     int           `json:"view_count"`
 	LikeCount     int           `json:"like_count"`
 	FavoriteCount int           `json:"favorite_count"`

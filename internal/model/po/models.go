@@ -33,8 +33,8 @@ type User struct {
 	Nickname  string         `gorm:"size:50" json:"nickname"`
 	Avatar    string         `gorm:"size:500" json:"avatar"`
 	Bio       string         `gorm:"size:500" json:"bio"`
-	Skills    string         `gorm:"type:text" json:"skills"`     // JSON数组格式的技术栈
-	Contacts  string         `gorm:"type:text" json:"contacts"`   // JSON对象格式的联系方式
+	Skills    string         `gorm:"type:text" json:"skills"`            // JSON数组格式的技术栈
+	Contacts  string         `gorm:"type:text" json:"contacts"`          // JSON对象格式的联系方式
 	Role      string         `gorm:"size:20;default:'user'" json:"role"` // user, admin, super_admin
 	IsBlogger bool           `gorm:"default:false" json:"is_blogger"`    // 是否为博主（用于关于页面展示）
 	Status    int            `gorm:"default:1" json:"status"`            // 1: active, 0: banned
@@ -55,6 +55,9 @@ type Article struct {
 	CategoryID      uint           `gorm:"index" json:"category_id"`
 	ChapterID       *uint          `gorm:"index" json:"chapter_id"` // 所属章节ID,可为空
 	Status          int            `gorm:"default:0" json:"status"` // 0: draft, 1: published, 2: offline
+	IsPinned        bool           `gorm:"default:false;index" json:"is_pinned"`
+	PinSort         int            `gorm:"default:0;index" json:"pin_sort"`
+	PinnedAt        *time.Time     `json:"pinned_at"`
 	ViewCount       int            `gorm:"default:0" json:"view_count"`
 	LikeCount       int            `gorm:"default:0" json:"like_count"`
 	FavoriteCount   int            `gorm:"default:0" json:"favorite_count"`
@@ -63,10 +66,10 @@ type Article struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Author   User      `gorm:"foreignKey:AuthorID;references:ID;constraint:OnDelete:SET NULL" json:"author,omitempty"`
-	Category Category  `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
-	Chapter  *Chapter  `gorm:"foreignKey:ChapterID;references:ID" json:"chapter,omitempty"`
-	Tags     []Tag     `gorm:"many2many:article_tags" json:"tags,omitempty"`
+	Author   User     `gorm:"foreignKey:AuthorID;references:ID;constraint:OnDelete:SET NULL" json:"author,omitempty"`
+	Category Category `gorm:"foreignKey:CategoryID;references:ID" json:"category,omitempty"`
+	Chapter  *Chapter `gorm:"foreignKey:ChapterID;references:ID" json:"chapter,omitempty"`
+	Tags     []Tag    `gorm:"many2many:article_tags" json:"tags,omitempty"`
 }
 
 // Category 分类模型
@@ -157,10 +160,10 @@ type PageVisit struct {
 	ID        uint      `gorm:"primarykey" json:"id"`
 	UserID    *uint     `gorm:"index" json:"user_id"` // 可为空，游客访问
 	IP        string    `gorm:"size:50;index" json:"ip"`
-	Path      string    `gorm:"size:500" json:"path"`         // 访问路径
-	Duration  int       `gorm:"not null" json:"duration"`      // 停留时长（秒）
-	UserAgent string    `gorm:"size:500" json:"user_agent"`    // 用户代理
-	Referrer  string    `gorm:"size:500" json:"referrer"`      // 来源页面
+	Path      string    `gorm:"size:500" json:"path"`       // 访问路径
+	Duration  int       `gorm:"not null" json:"duration"`   // 停留时长（秒）
+	UserAgent string    `gorm:"size:500" json:"user_agent"` // 用户代理
+	Referrer  string    `gorm:"size:500" json:"referrer"`   // 来源页面
 	CreatedAt time.Time `gorm:"index" json:"created_at"`
 }
 

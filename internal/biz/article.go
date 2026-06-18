@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gomarkdown/markdown"
@@ -30,6 +31,12 @@ type ArticleUseCase interface {
 	List(req *dto.ArticleListRequest) (*dto.PageResponse, error)
 	// UpdateStatus 更新文章状态
 	UpdateStatus(id uint, status int) error
+	// UpdatePin 更新文章置顶状态
+	UpdatePin(id uint, isPinned bool) error
+	// ListPinned 获取置顶文章
+	ListPinned() ([]dto.ArticleListItem, error)
+	// ReorderPinned 更新置顶文章排序
+	ReorderPinned(articleIDs []uint) error
 	// Search 搜索文章
 	Search(keyword string, page, limit int, sort string) (*dto.PageResponse, error)
 	// Archive 获取归档文章（按月份分组）
@@ -56,6 +63,8 @@ type ArticleUseCase interface {
 type articleUseCase struct {
 	data *data.Data
 }
+
+const maxPinnedArticles = 5
 
 // NewArticleUseCase 创建文章业务用例
 func NewArticleUseCase(d *data.Data) ArticleUseCase {
@@ -289,6 +298,98 @@ func (uc *articleUseCase) UpdateStatus(id uint, status int) error {
 	return nil
 }
 
+// UpdatePin 更新文章置顶状态
+func (uc *articleUseCase) UpdatePin(id uint, isPinned bool) error {
+	article, err := uc.data.ArticleRepo.FindByID(id)
+	if err != nil {
+		return errors.New("文章不存在")
+	}
+
+	if isPinned {
+		if article.Status != 1 {
+			return errors.New("只有已发布文章可以置顶")
+		}
+		pinSort := article.PinSort
+		if !article.IsPinned {
+			pinnedArticles, err := uc.data.ArticleRepo.ListPinned()
+			if err != nil {
+				return errors.New("查询置顶文章失败")
+			}
+			if len(pinnedArticles) >= maxPinnedArticles {
+				return errors.New("最多只能置顶5篇文章，请先取消其他置顶文章")
+			}
+			pinSort = nextPinSort(pinnedArticles)
+		}
+		pinnedAt := time.Now()
+		if pinSort <= 0 {
+			pinSort = int(article.ID)
+		}
+		return uc.data.ArticleRepo.UpdatePinned(id, true, pinSort, &pinnedAt)
+	}
+
+	return uc.data.ArticleRepo.UpdatePinned(id, false, 0, nil)
+}
+
+// ListPinned 获取置顶文章
+func (uc *articleUseCase) ListPinned() ([]dto.ArticleListItem, error) {
+	articles, err := uc.data.ArticleRepo.ListPinned()
+	if err != nil {
+		return nil, errors.New("查询置顶文章失败")
+	}
+
+	items := make([]dto.ArticleListItem, 0, len(articles))
+	for _, article := range articles {
+		items = append(items, uc.convertToArticleListItem(article))
+	}
+
+	return items, nil
+}
+
+// ReorderPinned 更新置顶文章排序
+func (uc *articleUseCase) ReorderPinned(articleIDs []uint) error {
+	articleIDs = uniqueUintIDs(articleIDs)
+	if len(articleIDs) == 0 {
+		return errors.New("文章ID列表不能为空")
+	}
+	if len(articleIDs) > maxPinnedArticles {
+		return errors.New("最多只能置顶5篇文章")
+	}
+
+	pinnedArticles, err := uc.data.ArticleRepo.ListPinned()
+	if err != nil {
+		return errors.New("查询置顶文章失败")
+	}
+	if len(articleIDs) != len(pinnedArticles) {
+		return errors.New("排序列表必须包含所有当前置顶文章")
+	}
+
+	pinnedIDs := make(map[uint]struct{}, len(pinnedArticles))
+	for _, article := range pinnedArticles {
+		pinnedIDs[article.ID] = struct{}{}
+	}
+	for _, articleID := range articleIDs {
+		if _, exists := pinnedIDs[articleID]; !exists {
+			return errors.New("排序列表包含非置顶文章")
+		}
+	}
+
+	if err := uc.data.ArticleRepo.ReorderPinned(articleIDs); err != nil {
+		return errors.New("更新置顶排序失败")
+	}
+
+	return nil
+}
+
+func nextPinSort(articles []*po.Article) int {
+	maxSort := 0
+	for _, article := range articles {
+		if article.PinSort > maxSort {
+			maxSort = article.PinSort
+		}
+	}
+	return maxSort + 1
+}
+
 // convertToArticleResponse 转换为文章响应
 func (uc *articleUseCase) convertToArticleResponse(article *po.Article) *dto.ArticleResponse {
 	resp := &dto.ArticleResponse{
@@ -302,6 +403,9 @@ func (uc *articleUseCase) convertToArticleResponse(article *po.Article) *dto.Art
 		CategoryID:      article.CategoryID,
 		ChapterID:       article.ChapterID,
 		Status:          article.Status,
+		IsPinned:        article.IsPinned,
+		PinSort:         article.PinSort,
+		PinnedAt:        article.PinnedAt,
 		ViewCount:       article.ViewCount,
 		LikeCount:       article.LikeCount,
 		FavoriteCount:   article.FavoriteCount,
@@ -353,6 +457,9 @@ func (uc *articleUseCase) convertToArticleListItem(article *po.Article) dto.Arti
 		Summary:       article.Summary,
 		Cover:         article.Cover,
 		Status:        article.Status,
+		IsPinned:      article.IsPinned,
+		PinSort:       article.PinSort,
+		PinnedAt:      article.PinnedAt,
 		ViewCount:     article.ViewCount,
 		LikeCount:     article.LikeCount,
 		FavoriteCount: article.FavoriteCount,
